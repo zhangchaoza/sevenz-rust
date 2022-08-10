@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 #[derive(Debug, Default, Clone)]
 pub struct Folder {
     pub coders: Vec<Coder>,

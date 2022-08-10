@@ -1,3 +1,4 @@
+#![allow(unused)]
 use crate::folder::*;
 use bit_set::BitSet;
 use std::{any::Any, collections::LinkedList};
