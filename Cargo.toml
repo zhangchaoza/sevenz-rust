@@ -8,6 +8,7 @@ repository = "https://github.com/dyz1990/sevenz-rust"
 license = "Apache-2.0"
 license-file = "LICENSE"
 keywords=["7z","7zip","sevenz","decompress"]
+description = "A 7z decompressor written in pure rust"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
