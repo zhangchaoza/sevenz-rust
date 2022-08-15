@@ -1,3 +1,6 @@
+[![Crate](https://img.shields.io/crates/v/sevenz-rust.svg)](https://crates.io/crates/sevenz-rust)
+ [![Documentation](https://docs.rs/sevenz-rust/badge.svg)](https://docs.rs/sevenz-rust)
+ 
 This project is a 7z decompressor written in pure rust.
 
 Only support lzma and lzma2 method currentlly
