@@ -1,4 +1,5 @@
 pub(crate) mod archive;
+mod bcj;
 pub(crate) mod coders;
 mod error;
 pub(crate) mod folder;
@@ -52,7 +53,9 @@ pub fn decompress<R: Read + Seek>(mut src_reader: R, dest: impl AsRef<Path>) -> 
             });
             let mut file = File::create(&path)
                 .map_err(|e| Error::file_open(e, path.to_string_lossy().to_string()))?;
-            std::io::copy(reader, &mut file).map_err(Error::io)?;
+            if entry.size() > 0 {
+                std::io::copy(reader, &mut file).map_err(Error::io)?;
+            }
         }
         Ok(true)
     })?;

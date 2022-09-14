@@ -16,6 +16,7 @@ pub enum Error {
 
     ExternalUnsupported,
     UnsupportedCompressionMethod(String),
+    MaxMemLimited { max_kb: usize, actaul_kb: usize },
 }
 
 impl Error {

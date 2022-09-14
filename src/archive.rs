@@ -108,12 +108,10 @@ impl SevenZArchiveEntry {
         self.access_date
     }
 
-
     pub fn is_anti_item(&self) -> bool {
         self.is_anti_item
     }
 }
-
 
 #[derive(Debug, Default)]
 pub struct SevenZMethodConfiguration {
@@ -135,18 +133,40 @@ pub struct SevenZMethod(&'static str, &'static [u8]);
 
 impl SevenZMethod {
     pub const ID_COPY: &'static [u8] = &[0x00];
+
     pub const ID_LZMA: &'static [u8] = &[0x03, 0x01, 0x01];
     pub const ID_LZMA2: &'static [u8] = &[0x21];
+
     pub const ID_DEFLATE: &'static [u8] = &[0x04, 0x01, 0x08];
+    pub const ID_DEFLATE64: &'static [u8] = &[0x04, 0x01, 0x09];
+
+    pub const ID_BCJ_X86: &'static [u8] = &[0x03, 0x03, 0x01, 0x03];
+    pub const ID_BCJ_PPC: &'static [u8] = &[0x03, 0x03, 0x02, 0x05];
+    pub const ID_BCJ_IA64: &'static [u8] = &[0x03, 0x03, 0x04, 0x01];
+    pub const ID_BCJ_ARM: &'static [u8] = &[0x03, 0x03, 0x05, 0x01];
+    pub const ID_BCJ_ARM_THUMB: &'static [u8] = &[0x03, 0x03, 0x07, 0x01];
+    pub const ID_BCJ_SPARC: &'static [u8] = &[0x03, 0x03, 0x08, 0x05];
+
     /// no compression
     pub const COPY: SevenZMethod = Self("COPY", Self::ID_COPY);
+
     pub const LZMA: Self = Self("LZMA", Self::ID_LZMA);
     pub const LZMA2: Self = Self("LZMA2", Self::ID_LZMA2);
+
     pub const DEFLATE: Self = Self("DEFLATE", Self::ID_DEFLATE);
-    pub const DEFLATE64: Self = Self("DEFLATE64", &[0x04, 0x01, 0x09]);
+    pub const DEFLATE64: Self = Self("DEFLATE64", Self::ID_DEFLATE64);
+
     pub const BZIP2: Self = Self("BZIP2", &[0x04, 0x02, 0x02]);
     pub const AES256SHA256: Self = Self("AES256SHA256", &[0x06, 0xf1, 0x07, 0x01]);
-    const METHODS: [&'static SevenZMethod; 7] = [
+
+    pub const BCJ_X86_FILTER: Self = Self("BCJ_X86", Self::ID_BCJ_X86);
+    pub const BCJ_PPC_FILTER: Self = Self("ID_BCJ_PPC", Self::ID_BCJ_PPC);
+    pub const BCJ_IA64_FILTER: Self = Self("ID_BCJ_IA64", Self::ID_BCJ_IA64);
+    pub const BCJ_ARM_FILTER: Self = Self("ID_BCJ_ARM", Self::ID_BCJ_ARM);
+    pub const BCJ_ARM_THUMB_FILTER: Self = Self("ID_BCJ_ARM_THUMB", Self::ID_BCJ_ARM_THUMB);
+    pub const BCJ_SPARC_FILTER: Self = Self("ID_BCJ_SPARC", Self::ID_BCJ_SPARC);
+
+    const METHODS: &'static [&'static SevenZMethod] = &[
         &Self::COPY,
         &Self::LZMA,
         &Self::LZMA2,
@@ -154,6 +174,12 @@ impl SevenZMethod {
         &Self::DEFLATE64,
         &Self::BZIP2,
         &Self::AES256SHA256,
+        &Self::BCJ_X86_FILTER,
+        &Self::BCJ_PPC_FILTER,
+        &Self::BCJ_IA64_FILTER,
+        &Self::BCJ_ARM_FILTER,
+        &Self::BCJ_ARM_THUMB_FILTER,
+        &Self::BCJ_SPARC_FILTER,
     ];
 
     #[inline]

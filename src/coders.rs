@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use crate::{
-    archive::SevenZMethod, error::Error, folder::Coder, lzma2_coder::Lzma2Reader,
+    archive::SevenZMethod, bcj::SimpleReader, error::Error, folder::Coder, lzma2_coder::Lzma2Reader,
     lzma_coder::LzmaReader,
 };
 
@@ -9,6 +9,7 @@ pub enum Decoder<R: Read> {
     COPY(R),
     LZMA(LzmaReader<R>),
     LZMA2(Lzma2Reader<R>),
+    BCJ(SimpleReader<R>),
 }
 
 impl<R: Read> Read for Decoder<R> {
@@ -17,6 +18,7 @@ impl<R: Read> Read for Decoder<R> {
             Decoder::COPY(r) => r.read(buf),
             Decoder::LZMA(r) => r.read(buf),
             Decoder::LZMA2(r) => r.read(buf),
+            Decoder::BCJ(r) => r.read(buf),
         }
     }
 }
@@ -45,8 +47,12 @@ pub fn add_decoder<I: Read>(
             Ok(Decoder::LZMA(lz))
         }
         SevenZMethod::ID_LZMA2 => {
-            let lz = Lzma2Reader::new(input, coder)?;
+            let lz = Lzma2Reader::new(input, coder, max_mem_limit_kb)?;
             Ok(Decoder::LZMA2(lz))
+        }
+        SevenZMethod::ID_BCJ_X86 => {
+            let de = SimpleReader::new_x86(input);
+            Ok(Decoder::BCJ(de))
         }
         _ => {
             return Err(Error::UnsupportedCompressionMethod(

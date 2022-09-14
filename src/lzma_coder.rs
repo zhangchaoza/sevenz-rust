@@ -14,8 +14,6 @@ pub struct LzmaReader<R: Read> {
 impl<R: Read> Read for LzmaReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if buf.len() == 0 {
-            println!("lzma decode buf len is 0");
-
             return Ok(0);
         }
         let start = self.cache_start;
@@ -40,7 +38,6 @@ impl<R: Read> Read for LzmaReader<R> {
 
         let mut reader = header.as_slice().chain(&mut self.reader);
 
-        // println!("lzma decode buf len={}", len);
         let result = match lzma_rs::lzma_decompress_with_options(&mut reader, &mut cache, &options)
         {
             Ok(_) => {

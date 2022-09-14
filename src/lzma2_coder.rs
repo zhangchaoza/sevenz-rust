@@ -11,7 +11,6 @@ pub struct Lzma2Reader<R: Read> {
 impl<R: Read> Read for Lzma2Reader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if buf.len() == 0 {
-            println!("lzma2 decode buf len is 0");
             return Ok(0);
         }
         let start = self.cache_start;
@@ -24,18 +23,21 @@ impl<R: Read> Read for Lzma2Reader<R> {
             buf[..len].copy_from_slice(data);
             self.cache = cache;
             return Ok(len);
-        } else if start > 0 && start == cache.len() {
-            cache.clear();
-            self.cache_start = 0;
+        } else if cache.len() > 0 && start == cache.len() {
+            self.cache = cache;
+            return Ok(0);
         }
-        let mut reader =&mut self.reader;
+
+        cache.clear();
+        self.cache_start = 0;
+        let mut reader = &mut self.reader;
         let result = match lzma_rs::lzma2_decompress(&mut reader, &mut cache) {
             Ok(_) => {
-                //
                 let len = cache.len();
                 let cache_start = len.min(buf.len());
                 buf[..cache_start].copy_from_slice(&cache[0..cache_start]);
                 self.cache_start = cache_start;
+
                 Ok(cache_start)
             }
             Err(e) => match e {
@@ -50,15 +52,17 @@ impl<R: Read> Read for Lzma2Reader<R> {
 }
 
 impl<R: Read> Lzma2Reader<R> {
-    pub fn new(
-        inner: R,
-        coder: &Coder,
-    ) -> Result<Self, Error> {
-        let _dict_size = get_dic_size(coder)?;
-
+    pub fn new(inner: R, coder: &Coder, max_mem_limit_kb: usize) -> Result<Self, Error> {
+        let dict_size = get_dic_size(coder)? as usize;
+        if dict_size / 1024 > max_mem_limit_kb {
+            return Err(Error::MaxMemLimited {
+                max_kb: max_mem_limit_kb,
+                actaul_kb: dict_size / 1024,
+            });
+        }
         Ok(Self {
             reader: BufReader::new(inner),
-            cache: Vec::with_capacity(8192),
+            cache: Vec::with_capacity(dict_size),
             cache_start: 0,
         })
     }

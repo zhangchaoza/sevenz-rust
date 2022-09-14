@@ -1,7 +1,8 @@
 [![Crate](https://img.shields.io/crates/v/sevenz-rust.svg)](https://crates.io/crates/sevenz-rust)
  [![Documentation](https://docs.rs/sevenz-rust/badge.svg)](https://docs.rs/sevenz-rust)
  
-This project is a 7z decompressor written in pure rust.
+This project is a 7z compressor/decompressor written in pure rust.<br/>
+And it's very much inspired by the [apache commons-compress](https://commons.apache.org/proper/commons-compress/) project.
 
 Only support lzma and lzma2 method currentlly
 
