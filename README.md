@@ -6,6 +6,15 @@ And it's very much inspired by the [apache commons-compress](https://commons.apa
 
 Only support lzma and lzma2 method currentlly
 
+BCJ filter support is in progress
+
+ - [x] X86
+ - [ ] PPC
+ - [ ] IA64
+ - [ ] ARM
+ - [ ] ARM_THUMB
+ - [ ] SPARC
+ 
 ## Usage
 
 Decompress source file "data/sample.7z" to dest path "data/sample"
