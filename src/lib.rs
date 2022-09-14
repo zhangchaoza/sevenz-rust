@@ -6,6 +6,7 @@ pub(crate) mod folder;
 mod lzma2_coder;
 mod lzma_coder;
 mod reader;
+mod delta;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 

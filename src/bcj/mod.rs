@@ -1,4 +1,7 @@
+mod arm;
 mod x86;
+mod ppc;
+mod sparc;
 
 use std::io::Read;
 
@@ -45,16 +48,36 @@ impl Default for State {
     }
 }
 impl<R> SimpleReader<R> {
-    pub fn new_x86(inner: R) -> Self {
+    fn new(inner: R, filter: BCJFilter) -> Self {
         Self {
             inner,
-            filter: BCJFilter::new_x86(0, false),
+            filter,
             state: State {
                 filter_buf: vec![0; FILTER_BUF_SIZE],
                 ..Default::default()
             },
             err: None,
         }
+    }
+    #[inline]
+    pub fn new_x86(inner: R) -> Self {
+        Self::new(inner, BCJFilter::new_x86(0, false))
+    }
+
+    #[inline]
+    pub fn new_arm(inner: R) -> Self {
+        Self::new(inner, BCJFilter::new_arm(0, false))
+    }
+    #[inline]
+    pub fn new_arm_thumb(inner: R) -> Self {
+        Self::new(inner, BCJFilter::new_arm_thumb(0, false))
+    }
+    #[inline]
+    pub fn new_ppc(inner: R) -> Self {
+        Self::new(inner, BCJFilter::new_power_pc(0, false))
+    } #[inline]
+    pub fn new_sparc(inner: R) -> Self {
+        Self::new(inner, BCJFilter::new_sparc(0, false))
     }
 }
 impl<R: Read> Read for SimpleReader<R> {

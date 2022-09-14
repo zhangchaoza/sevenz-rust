@@ -4,17 +4,21 @@
 This project is a 7z compressor/decompressor written in pure rust.<br/>
 And it's very much inspired by the [apache commons-compress](https://commons.apache.org/proper/commons-compress/) project.
 
-Only support lzma and lzma2 method currentlly
 
-BCJ filter support is in progress
+Supported codecs:
+ - [x] COPY
+ - [x] LZMA
+ - [x] LZMA2
 
- - [x] X86
- - [ ] PPC
- - [ ] IA64
- - [ ] ARM
- - [ ] ARM_THUMB
- - [ ] SPARC
- 
+Supported filters:
+ - [x] BCJ X86
+ - [x] BCJ PPC
+ - [x] BCJ IA64
+ - [x] BCJ ARM
+ - [x] BCJ ARM_THUMB
+ - [x] BCJ SPARC
+ - [x] DELTA
+
 ## Usage
 
 Decompress source file "data/sample.7z" to dest path "data/sample"

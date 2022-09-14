@@ -146,6 +146,7 @@ impl SevenZMethod {
     pub const ID_BCJ_ARM: &'static [u8] = &[0x03, 0x03, 0x05, 0x01];
     pub const ID_BCJ_ARM_THUMB: &'static [u8] = &[0x03, 0x03, 0x07, 0x01];
     pub const ID_BCJ_SPARC: &'static [u8] = &[0x03, 0x03, 0x08, 0x05];
+    pub const ID_DELTA: &'static [u8] = &[0x03];
 
     /// no compression
     pub const COPY: SevenZMethod = Self("COPY", Self::ID_COPY);
@@ -160,11 +161,12 @@ impl SevenZMethod {
     pub const AES256SHA256: Self = Self("AES256SHA256", &[0x06, 0xf1, 0x07, 0x01]);
 
     pub const BCJ_X86_FILTER: Self = Self("BCJ_X86", Self::ID_BCJ_X86);
-    pub const BCJ_PPC_FILTER: Self = Self("ID_BCJ_PPC", Self::ID_BCJ_PPC);
-    pub const BCJ_IA64_FILTER: Self = Self("ID_BCJ_IA64", Self::ID_BCJ_IA64);
-    pub const BCJ_ARM_FILTER: Self = Self("ID_BCJ_ARM", Self::ID_BCJ_ARM);
-    pub const BCJ_ARM_THUMB_FILTER: Self = Self("ID_BCJ_ARM_THUMB", Self::ID_BCJ_ARM_THUMB);
-    pub const BCJ_SPARC_FILTER: Self = Self("ID_BCJ_SPARC", Self::ID_BCJ_SPARC);
+    pub const BCJ_PPC_FILTER: Self = Self("BCJ_PPC", Self::ID_BCJ_PPC);
+    pub const BCJ_IA64_FILTER: Self = Self("BCJ_IA64", Self::ID_BCJ_IA64);
+    pub const BCJ_ARM_FILTER: Self = Self("BCJ_ARM", Self::ID_BCJ_ARM);
+    pub const BCJ_ARM_THUMB_FILTER: Self = Self("BCJ_ARM_THUMB", Self::ID_BCJ_ARM_THUMB);
+    pub const BCJ_SPARC_FILTER: Self = Self("BCJ_SPARC", Self::ID_BCJ_SPARC);
+    pub const DELTA_FILTER: Self = Self("DELTA", Self::ID_DELTA);
 
     const METHODS: &'static [&'static SevenZMethod] = &[
         &Self::COPY,
@@ -180,6 +182,7 @@ impl SevenZMethod {
         &Self::BCJ_ARM_FILTER,
         &Self::BCJ_ARM_THUMB_FILTER,
         &Self::BCJ_SPARC_FILTER,
+        &Self::DELTA_FILTER,
     ];
 
     #[inline]
