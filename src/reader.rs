@@ -6,11 +6,7 @@ use std::{
 use bit_set::BitSet;
 use crc::Crc;
 
-use crate::{
-    archive::*,
-    error::Error,
-    folder::*,
-};
+use crate::{archive::*, error::Error, folder::*};
 const CRC32: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
 const MAX_MEM_LIMIT_KB: usize = usize::MAX / 1024;
 pub struct BoundedReader<R: Read> {
@@ -72,7 +68,6 @@ impl<R: Read> Crc32VerifyingReader<R> {
 
 impl<R: Read> Read for Crc32VerifyingReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-
         if self.remaining <= 0 {
             return Ok(0);
         }
@@ -1108,7 +1103,8 @@ impl<R: Read + Seek> SevenZReader<R> {
                 f
             } else {
                 entry_index += 1;
-
+                let empty_reader: &mut dyn Read = &mut ([0u8; 0].as_slice());
+                each(file, empty_reader)?;
                 continue;
             };
 
@@ -1117,10 +1113,7 @@ impl<R: Read + Seek> SevenZReader<R> {
             if current_folder_index != folder_index as i32 {
                 current_folder_index = folder_index as i32;
 
-                match self.build_decode_stack(
-                    unsafe { &mut *reader },
-                    folder_index,
-                ) {
+                match self.build_decode_stack(unsafe { &mut *reader }, folder_index) {
                     Ok((mut read, _size)) => {
                         {
                             let mut decoder: Box<dyn Read> =
