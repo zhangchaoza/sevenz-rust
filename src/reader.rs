@@ -29,12 +29,12 @@ impl<R: Read> Read for BoundedReader<R> {
             return Ok(0);
         }
         let remain = self.remain;
-        let buf = if buf.len() < remain {
+        let buf2 = if buf.len() < remain {
             buf
         } else {
             &mut buf[..remain]
         };
-        match self.inner.read(buf) {
+        match self.inner.read(buf2) {
             Ok(size) => {
                 if self.remain < size {
                     self.remain = 0;
@@ -317,7 +317,7 @@ impl Archive {
                         "Multi input/output stream coders are not yet supported",
                     ));
                 }
-                let next = crate::coders::add_decoder(
+                let next = crate::decoders::add_decoder(
                     decoder,
                     folder.get_unpack_size_at_index(index) as usize,
                     coder,
@@ -1067,7 +1067,7 @@ impl<R: Read + Seek> SevenZReader<R> {
                     "Multi input/output stream coders are not yet supported",
                 ));
             }
-            let next = crate::coders::add_decoder(
+            let next = crate::decoders::add_decoder(
                 decoder,
                 folder.get_unpack_size_at_index(index) as usize,
                 coder,

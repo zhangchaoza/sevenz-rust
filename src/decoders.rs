@@ -1,14 +1,20 @@
 use std::io::Read;
 
+use byteorder::{LittleEndian, ReadBytesExt};
+
 use crate::{
-    archive::SevenZMethod, bcj::SimpleReader, delta::DeltaReader, error::Error, folder::Coder,
-    lzma2_coder::Lzma2Reader, lzma_coder::LzmaReader,
+    archive::SevenZMethod,
+    bcj::SimpleReader,
+    delta::DeltaReader,
+    error::Error,
+    folder::Coder,
+    lzma::{lzma2_get_memery_usage, LZMA2Reader, LZMAReader},
 };
 
 pub enum Decoder<R: Read> {
     COPY(R),
-    LZMA(LzmaReader<R>),
-    LZMA2(Lzma2Reader<R>),
+    LZMA(LZMAReader<R>),
+    LZMA2(LZMA2Reader<R>),
     BCJ(SimpleReader<R>),
     Delta(DeltaReader<R>),
 }
@@ -41,15 +47,29 @@ pub fn add_decoder<I: Read>(
             coder.decompression_method_id()
         )));
     };
-    println!("method:{}", method.name());
     match method.id() {
         SevenZMethod::ID_COPY => Ok(Decoder::COPY(input)),
         SevenZMethod::ID_LZMA => {
-            let lz = LzmaReader::new(input, coder, uncompressed_len, max_mem_limit_kb);
+            let dict_size = get_lzma_dic_size(coder)?;
+            if coder.properties.len() < 1 {
+                return Err(Error::Other("LZMA properties too short".into()));
+            }
+            let props = coder.properties[0];
+            let lz =
+                LZMAReader::new_with_props(input, uncompressed_len as _, props, dict_size, None)
+                    .map_err(|e| Error::io(e))?;
             Ok(Decoder::LZMA(lz))
         }
         SevenZMethod::ID_LZMA2 => {
-            let lz = Lzma2Reader::new(input, coder, max_mem_limit_kb)?;
+            let dic_size = get_lzma2_dic_size(coder)?;
+            let mem_size = lzma2_get_memery_usage(dic_size) as usize;
+            if mem_size > max_mem_limit_kb {
+                return Err(Error::MaxMemLimited {
+                    max_kb: max_mem_limit_kb,
+                    actaul_kb: mem_size,
+                });
+            }
+            let lz = LZMA2Reader::new(input, dic_size, None);
             Ok(Decoder::LZMA2(lz))
         }
         SevenZMethod::ID_BCJ_X86 => {
@@ -87,4 +107,29 @@ pub fn add_decoder<I: Read>(
             ));
         }
     }
+}
+
+#[inline]
+fn get_lzma2_dic_size(coder: &Coder) -> Result<u32, Error> {
+    if coder.properties.len() < 1 {
+        return Err(Error::other("LZMA2 properties too short"));
+    }
+    let dict_size_bits = 0xff & coder.properties[0] as u32;
+    if (dict_size_bits & (!0x3f)) != 0 {
+        return Err(Error::other("Unsupported LZMA2 property bits"));
+    }
+    if dict_size_bits > 40 {
+        return Err(Error::other("Dictionary larger than 4GiB maximum size"));
+    }
+    if dict_size_bits == 40 {
+        return Ok(0xFFFFffff);
+    }
+    let size = (2 | (dict_size_bits & 0x1)) << (dict_size_bits / 2 + 11);
+    Ok(size)
+}
+
+#[inline]
+fn get_lzma_dic_size(coder: &Coder) -> Result<u32, Error> {
+    let mut props = &coder.properties[1..5];
+    props.read_u32::<LittleEndian>().map_err(|e| Error::io(e))
 }

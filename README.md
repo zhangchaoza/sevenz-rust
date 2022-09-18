@@ -4,11 +4,13 @@
 This project is a 7z compressor/decompressor written in pure rust.<br/>
 And it's very much inspired by the [apache commons-compress](https://commons.apache.org/proper/commons-compress/) project.
 
+## Decompression
 
 Supported codecs:
  - [x] COPY
  - [x] LZMA
  - [x] LZMA2
+
 
 Supported filters:
  - [x] BCJ X86
@@ -19,15 +21,20 @@ Supported filters:
  - [x] BCJ SPARC
  - [x] DELTA
 
-## Usage
+The dependence of lzma-rs was removed sine 0.1.3.<br>
+The LZMA/LZMA2 decoder and all filters code was ported from [tukaani xz for java](https://tukaani.org/xz/java.html)
+
+
+### Usage
 
 Decompress source file "data/sample.7z" to dest path "data/sample"
 
 ```rust
 sevenz_rust::decompress_file("data/sample.7z", "data/sample").expect("complete");
 ```
+## Compression
+The compression feature is under development.
 
 ## Dependencies
 - [crc](https://crates.io/crates/crc)
 - [bit-set](https://crates.io/crates/bit-set)
-- [lzma-rs](https://crates.io/crates/lzma-rs)
