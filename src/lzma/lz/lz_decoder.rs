@@ -95,14 +95,15 @@ impl LZDecoder {
 
             // Here we will never copy more than dist + 1 bytes and
             // so the copying won't repeat from its own output.
-            // Thus, we can always use arraycopy safely.
-            let copy_size = usize::min(self.buf_size - back as usize, left);
+            // Thus, we can always use std::ptr::copy safely.
+            let copy_size = usize::min(self.buf_size - back, left);
             assert!(copy_size <= dist + 1);
-            let src = unsafe {
-                let r = &self.buf[back..(back + copy_size)];
-                std::slice::from_raw_parts(r.as_ptr(), r.len())
-            };
-            self.buf[self.pos..(self.pos + copy_size)].copy_from_slice(src);
+            unsafe {
+                let buf_ptr = self.buf.as_mut_ptr();
+                let src = buf_ptr.add(back);
+                let dest = buf_ptr.add(self.pos);
+                std::ptr::copy(src, dest, copy_size);
+            }
             self.pos += copy_size;
             back = 0;
             left -= copy_size;
@@ -120,13 +121,13 @@ impl LZDecoder {
 
         loop {
             let copy_size = left.min(self.pos - back);
-            //System.arraycopy(buf, back, buf, pos, copySize);
             let pos = self.pos;
-            let src = unsafe {
-                let r = &self.buf[back..(back + copy_size)];
-                std::slice::from_raw_parts(r.as_ptr(), r.len())
-            };
-            self.buf[pos..(pos + copy_size)].copy_from_slice(src);
+            unsafe {
+                let buf_ptr = self.buf.as_mut_ptr();
+                let src = buf_ptr.add(back);
+                let dest = buf_ptr.add(pos);
+                std::ptr::copy(src, dest, copy_size);
+            }
 
             self.pos += copy_size;
             left -= copy_size;
