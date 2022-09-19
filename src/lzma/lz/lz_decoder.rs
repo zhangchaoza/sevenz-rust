@@ -13,7 +13,7 @@ pub struct LZDecoder {
 }
 
 impl LZDecoder {
-    pub fn new(dict_size: usize, preset_dict: Option<Vec<u8>>) -> Self {
+    pub fn new(dict_size: usize, preset_dict: Option<&[u8]>) -> Self {
         let mut buf = vec![0; dict_size];
         let mut pos = 0;
         let mut full = 0;

@@ -33,7 +33,7 @@ fn get_dict_size(dict_size: u32) -> u32 {
 }
 
 impl<R: Read> LZMA2Reader<R> {
-    pub fn new(inner: R, dict_size: u32, preset_dict: Option<Vec<u8>>) -> Self {
+    pub fn new(inner: R, dict_size: u32, preset_dict: Option<&[u8]>) -> Self {
         let has_preset = preset_dict.as_ref().map(|a| a.len() > 0).unwrap_or(false);
         let lz = unsafe {
             let lz = LZDecoder::new(get_dict_size(dict_size) as _, preset_dict);

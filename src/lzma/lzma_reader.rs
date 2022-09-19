@@ -27,7 +27,7 @@ pub fn get_memery_usage(dict_size: u32, lc: u32, lp: u32) -> Result<u32> {
     return Ok(10 + get_dict_size(dict_size)? / 1024 + ((2 * 0x300) << (lc + lp)) / 1024);
 }
 
-pub fn get_dict_size(dict_size: u32) -> Result<u32> {
+fn get_dict_size(dict_size: u32) -> Result<u32> {
     if dict_size > DICT_SIZE_MAX {
         return Err(Error::new(ErrorKind::InvalidInput, "dict size too large"));
     }
@@ -60,7 +60,7 @@ impl<R: Read> LZMAReader<R> {
         uncomp_size: u64,
         mut props: u8,
         dict_size: u32,
-        preset_dict: Option<Vec<u8>>,
+        preset_dict: Option<&[u8]>,
     ) -> Result<Self> {
         if props > (4 * 5 + 4) * 9 + 8 {
             return Err(Error::new(ErrorKind::InvalidInput, "Invalid props byte"));
@@ -90,7 +90,7 @@ impl<R: Read> LZMAReader<R> {
         lp: u32,
         pb: u32,
         dict_size: u32,
-        preset_dict: Option<Vec<u8>>,
+        preset_dict: Option<&[u8]>,
     ) -> Result<Self> {
         if lc > 8 || lp > 4 || pb > 4 {
             return Err(Error::new(
@@ -137,7 +137,7 @@ impl<R: Read> LZMAReader<R> {
     pub fn new_mem_limit(
         mut reader: R,
         mem_limit_kb: u32,
-        preset_dict: Option<Vec<u8>>,
+        preset_dict: Option<&[u8]>,
     ) -> Result<Self> {
         let props = reader.read_u8()?;
         let mut dict_size = reader.read_u32::<LittleEndian>()?;
@@ -161,7 +161,7 @@ impl<R: Read> LZMAReader<R> {
         uncomp_size: u64,
         props: u8,
         dict_size: u32,
-        preset_dict: Option<Vec<u8>>,
+        preset_dict: Option<&[u8]>,
     ) -> Result<Self> {
         Self::construct1(reader, uncomp_size, props, dict_size, preset_dict)
     }
@@ -173,7 +173,7 @@ impl<R: Read> LZMAReader<R> {
         lp: u32,
         pb: u32,
         dict_size: u32,
-        preset_dict: Option<Vec<u8>>,
+        preset_dict: Option<&[u8]>,
     ) -> Result<Self> {
         Self::construct2(reader, uncomp_size, lc, lp, pb, dict_size, preset_dict)
     }
