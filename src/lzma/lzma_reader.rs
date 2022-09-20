@@ -205,7 +205,7 @@ impl<R: Read> LZMAReader<R> {
                     }
                     self.end_reached = true;
                     unsafe {
-                        self.rc.as_mut().normalize();
+                        self.rc.as_mut().normalize()?;
                     }
                 }
             }
@@ -214,9 +214,8 @@ impl<R: Read> LZMAReader<R> {
             off += copied_size;
             len -= copied_size;
             size += copied_size;
-            if self.remaining_size >= 0 {
+            if self.remaining_size <= u64::MAX / 2 {
                 self.remaining_size -= copied_size as u64;
-                assert!(self.remaining_size >= 0);
                 if self.remaining_size == 0 {
                     self.end_reached = true;
                 }

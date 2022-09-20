@@ -145,16 +145,18 @@ impl RangeDecoder<RangeDecoderBuffer> {
         reader.read_exact(&mut self.inner.buf[pos..end])
     }
 
+    #[inline]
     pub fn is_finished(&self) -> bool {
         self.inner.pos == self.inner.buf.len() && self.code == 0
     }
+
 }
 
 impl RangeDecoderBuffer {
     pub fn new(len: usize) -> Self {
         Self {
             buf: vec![0; len],
-            pos: 0,
+            pos: len,
         }
     }
 }
