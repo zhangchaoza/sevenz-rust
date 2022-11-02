@@ -212,27 +212,3 @@ impl LengthCoder {
         init_probs(&mut self.high);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::LZMACoder;
-
-    #[test]
-    fn test_get_dict_special() {
-        let mut coder = LZMACoder::new(1);
-        coder.dist_special.0 = [1, 2];
-        coder.dist_special.1 = [3, 4];
-        coder.dist_special.2 = [5, 6, 7, 8];
-        coder.dist_special.3 = [9, 10, 11, 12];
-        coder.dist_special.4 = [13; 8];
-        coder.dist_special.5 = [14; 8];
-
-        assert_eq!(coder.get_dist_special(0), &mut [1, 2]);
-        assert_eq!(coder.get_dist_special(1), &mut [3, 4]);
-        assert_eq!(coder.get_dist_special(2), &mut [5, 6, 7, 8]);
-        assert_eq!(coder.get_dist_special(3), &mut [9, 10, 11, 12]);
-        assert_eq!(coder.get_dist_special(4), &mut [13; 8]);
-        assert_eq!(coder.get_dist_special(5), &mut [14; 8]);
-        assert_eq!(coder.get_dist_special(6), &mut [0; 16]);
-    }
-}

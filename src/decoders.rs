@@ -2,6 +2,8 @@ use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
+#[cfg(feature = "aes256")]
+use crate::aes256sha256::Aes256Sha256Decoder;
 use crate::{
     archive::SevenZMethod,
     bcj::SimpleReader,
@@ -17,6 +19,8 @@ pub enum Decoder<R: Read> {
     LZMA2(LZMA2Reader<R>),
     BCJ(SimpleReader<R>),
     Delta(DeltaReader<R>),
+    #[cfg(feature = "aes256")]
+    AES256SHA256(Aes256Sha256Decoder<R>),
 }
 
 impl<R: Read> Read for Decoder<R> {
@@ -27,6 +31,8 @@ impl<R: Read> Read for Decoder<R> {
             Decoder::LZMA2(r) => r.read(buf),
             Decoder::BCJ(r) => r.read(buf),
             Decoder::Delta(r) => r.read(buf),
+            #[cfg(feature = "aes256")]
+            Decoder::AES256SHA256(r) => r.read(buf),
         }
     }
 }
@@ -35,7 +41,7 @@ pub fn add_decoder<I: Read>(
     input: I,
     uncompressed_len: usize,
     coder: &Coder,
-    _password: &[u8],
+    password: &[u8],
     max_mem_limit_kb: usize,
 ) -> Result<Decoder<I>, Error> {
     let method = SevenZMethod::by_id(coder.decompression_method_id());
@@ -100,6 +106,11 @@ pub fn add_decoder<I: Read>(
             };
             let de = DeltaReader::new(input, d as usize);
             Ok(Decoder::Delta(de))
+        }
+        #[cfg(feature = "aes256")]
+        SevenZMethod::ID_AES256SHA256 => {
+            let de = Aes256Sha256Decoder::new(input, coder, password)?;
+            Ok(Decoder::AES256SHA256(de))
         }
         _ => {
             return Err(Error::UnsupportedCompressionMethod(

@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt::Display};
 pub enum Error {
     BadSignature([u8; 6]),
     UnsupportedVersion { major: u8, minor: u8 },
-    ChecksumVerificationFialed,
+    ChecksumVerificationFailed,
     NextHeaderCrcMismatch,
     Io(std::io::Error),
     FileOpen(std::io::Error, String),
@@ -17,6 +17,7 @@ pub enum Error {
     ExternalUnsupported,
     UnsupportedCompressionMethod(String),
     MaxMemLimited { max_kb: usize, actaul_kb: usize },
+    PasswordRequired,
 }
 
 impl Error {

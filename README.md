@@ -27,11 +27,28 @@ The LZMA/LZMA2 decoder and all filters code was ported from [tukaani xz for java
 
 ### Usage
 
-Decompress source file "data/sample.7z" to dest path "data/sample"
+```
+[dependencies]
+sevenz-rust={version="0.1.5"}
+```
 
+Decompress source file "data/sample.7z" to dest path "data/sample"
 ```rust
 sevenz_rust::decompress_file("data/sample.7z", "data/sample").expect("complete");
 ```
+
+Decompress a encrypted 7z file
+
+Add 'aes256' feature
+```
+[dependencies]
+sevenz-rust={version="0.1.5", features=["aes256"]}
+```
+
+```rust
+sevenz_rust::decompress_file_with_password("path/to/encrypted.7z", "path/to/output", "password".into()).expect("complete");
+```
+
 ## Compression
 The compression feature is under development.
 

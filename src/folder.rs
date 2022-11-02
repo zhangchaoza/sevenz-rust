@@ -39,7 +39,7 @@ impl Folder {
             return 0;
         }
         for i in (0..self.total_output_streams).rev() {
-            if self.find_bind_pair_for_in_stream(i).is_none() {
+            if self.find_bind_pair_for_out_stream(i).is_none() {
                 return self.unpack_sizes[i];
             }
         }

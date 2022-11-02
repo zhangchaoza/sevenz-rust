@@ -75,7 +75,7 @@ impl<R: Read> LZMA2Reader<R> {
         } else if self.need_dict_reset {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
-                "control < 0xE0 && control != 0x01",
+                "Corrupted input data (LZMA2:0)",
             ));
         }
         if control >= 0x80 {
@@ -89,14 +89,14 @@ impl<R: Read> LZMA2Reader<R> {
             } else if self.need_props {
                 return Err(std::io::Error::new(
                     ErrorKind::InvalidInput,
-                    "control < 0xC0 when need_props==true",
+                    "Corrupted input data (LZMA2:1)",
                 ));
             } else if control >= 0xA0 {
                 self.lzma.as_mut().map(|l| l.reset());
             }
             unsafe { &mut *self.rc.as_ptr() }.prepare(&mut self.inner, compressed_size)?;
         } else if control > 0x02 {
-            return Err(std::io::Error::new(ErrorKind::InvalidInput, "control>0x02"));
+            return Err(std::io::Error::new(ErrorKind::InvalidInput, "Corrupted input data (LZMA2:2)"));
         } else {
             self.is_lzma_chunk = false;
             self.uncompressed_size = (self.inner.read_u16::<BigEndian>()? + 1) as _;
@@ -109,7 +109,7 @@ impl<R: Read> LZMA2Reader<R> {
         if props > (4 * 5 + 4) * 9 + 8 {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
-                "props>(4*5+4) * 9 + 8",
+                "Corrupted input data (LZMA2:3)",
             ));
         }
         let pb = props / (9 * 5);
@@ -117,7 +117,7 @@ impl<R: Read> LZMA2Reader<R> {
         let lp = props / 9;
         let lc = props - lp * 9;
         if lc + lp > 4 {
-            return Err(std::io::Error::new(ErrorKind::InvalidInput, "lc+lp>4"));
+            return Err(std::io::Error::new(ErrorKind::InvalidInput, "Corrupted input data (LZMA2:4)"));
         }
         self.lzma = Some(LZMADecoder::new(
             self.lz, self.rc, lc as _, lp as _, pb as _,

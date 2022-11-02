@@ -6,7 +6,7 @@ use std::{
 use bit_set::BitSet;
 use crc::Crc;
 
-use crate::{archive::*, error::Error, folder::*};
+use crate::{archive::*, error::Error, folder::*, password::Password};
 const CRC32: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
 const MAX_MEM_LIMIT_KB: usize = usize::MAX / 1024;
 pub struct BoundedReader<R: Read> {
@@ -72,7 +72,6 @@ impl<R: Read> Read for Crc32VerifyingReader<R> {
             return Ok(0);
         }
         let size = self.inner.read(buf)?;
-
         if size > 0 {
             self.remaining -= size as i32;
             self.crc_digest.update(&buf[..size]);
@@ -82,7 +81,7 @@ impl<R: Read> Read for Crc32VerifyingReader<R> {
             if d as u64 != self.expected_value {
                 return Err(std::io::Error::new(
                     ErrorKind::Other,
-                    Error::ChecksumVerificationFialed,
+                    Error::ChecksumVerificationFailed,
                 ));
             }
         }
@@ -141,7 +140,7 @@ impl Archive {
         reader.read_exact(&mut buf).map_err(Error::io)?;
         let value = crc32_cksum(&buf);
         if value != start_header_crc {
-            return Err(Error::ChecksumVerificationFialed);
+            return Err(Error::ChecksumVerificationFailed);
         }
         let mut buf_read = buf.as_slice();
         let offset = read_u64le(&mut buf_read)?;
@@ -332,9 +331,6 @@ impl Archive {
         };
         if folder.has_crc {
             decoder = Box::new(Crc32VerifyingReader::new(decoder, unpack_size, folder.crc));
-            // if crc32_cksum(&next_reader[..unpack_size]) as u64 != folder.crc {
-            //     return Err(Error::ChecksumVerificationFialed);
-            // }
         }
 
         Ok((decoder, unpack_size))
@@ -1024,7 +1020,7 @@ pub struct SevenZReader<R: Read + Seek> {
 
 impl SevenZReader<File> {
     #[inline]
-    pub fn open(path: impl AsRef<std::path::Path>, password: &[u8]) -> Result<Self, Error> {
+    pub fn open(path: impl AsRef<std::path::Path>, password: Password) -> Result<Self, Error> {
         let file = std::fs::File::open(path.as_ref())
             .map_err(|e| Error::file_open(e, path.as_ref().to_string_lossy().to_string()))?;
         let len = file.metadata().map(|m| m.len()).map_err(Error::io)?;
@@ -1034,12 +1030,13 @@ impl SevenZReader<File> {
 
 impl<R: Read + Seek> SevenZReader<R> {
     #[inline]
-    pub fn new(mut source: R, reader_len: u64, password: &[u8]) -> Result<Self, Error> {
-        let archive = Archive::read(&mut source, reader_len, password)?;
+    pub fn new(mut source: R, reader_len: u64, password: Password) -> Result<Self, Error> {
+        let password = password.to_vec();
+        let archive = Archive::read(&mut source, reader_len, &password)?;
         Ok(Self {
             source,
             archive,
-            password: password.to_vec(),
+            password,
         })
     }
 
@@ -1108,8 +1105,6 @@ impl<R: Read + Seek> SevenZReader<R> {
                 continue;
             };
 
-            let entry = file;
-
             if current_folder_index != folder_index as i32 {
                 current_folder_index = folder_index as i32;
 
@@ -1125,7 +1120,7 @@ impl<R: Read + Seek> SevenZReader<R> {
                                     file.crc,
                                 ));
                             }
-                            if !each(entry, &mut decoder)? {
+                            if !each(file, &mut decoder)? {
                                 break;
                             }
                         }
@@ -1145,7 +1140,7 @@ impl<R: Read + Seek> SevenZReader<R> {
                                 file.crc,
                             ));
                         }
-                        if !each(entry, &mut decoder)? {
+                        if !each(file, &mut decoder)? {
                             break;
                         }
                     }
