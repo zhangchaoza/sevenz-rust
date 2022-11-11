@@ -1,4 +1,4 @@
-use std::{path::{PathBuf}, fs::{read_to_string, read}};
+use std::{path::{PathBuf}, fs::{read_to_string}};
 use tempfile::tempdir;
 use sevenz_rust::*;
 
