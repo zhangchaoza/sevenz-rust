@@ -39,7 +39,7 @@ fn decompress_two_empty_files_unencoded_header(){
 #[test]
 fn decompress_lzma_single_file_unencoded_header(){
     let mut source_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    source_file.push("tests/resources/single_file_with_content.7z");
+    source_file.push("tests/resources/single_file_with_content_lzma.7z");
     let temp_dir = tempdir().unwrap();
     let target = temp_dir.path().to_path_buf();
     let mut file1_path = target.clone();
@@ -70,7 +70,7 @@ fn decompress_lzma2_bcj_x86_file(){
 #[test]
 fn decompress_lzma_multiple_files_encoded_header(){
     let mut source_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    source_file.push("tests/resources/two_files_with_content.7z");
+    source_file.push("tests/resources/two_files_with_content_lzma.7z");
     let temp_dir = tempdir().unwrap();
     let target = temp_dir.path().to_path_buf();
     let mut file1_path = target.clone();
@@ -84,3 +84,31 @@ fn decompress_lzma_multiple_files_encoded_header(){
     assert_eq!(read_to_string(file2_path).unwrap(), "file two content\n");
 }
 
+
+#[test]
+fn decompress_delta_lzma_single_file_unencoded_header(){
+    let mut source_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    source_file.push("tests/resources/delta.7z");
+    let temp_dir = tempdir().unwrap();
+    let target = temp_dir.path().to_path_buf();
+    let mut file1_path = target.clone();
+    file1_path.push("delta.txt");
+    
+    decompress_file(source_file, target).unwrap();
+    
+    assert_eq!(read_to_string(file1_path).unwrap(), "aaaabbbbcccc");
+}
+
+#[test]
+fn decompress_copy_lzma2_single_file(){
+    let mut source_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    source_file.push("tests/resources/copy.7z");
+    let temp_dir = tempdir().unwrap();
+    let target = temp_dir.path().to_path_buf();
+    let mut file1_path = target.clone();
+    file1_path.push("copy.txt");
+    
+    decompress_file(source_file, target).unwrap();
+    
+    assert_eq!(read_to_string(file1_path).unwrap(), "simple copy encoding");
+}
