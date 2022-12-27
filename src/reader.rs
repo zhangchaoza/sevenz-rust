@@ -1018,6 +1018,7 @@ pub struct SevenZReader<R: Read + Seek> {
     password: Vec<u8>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl SevenZReader<File> {
     #[inline]
     pub fn open(path: impl AsRef<std::path::Path>, password: Password) -> Result<Self, Error> {
@@ -1084,9 +1085,9 @@ impl<R: Read + Seek> SevenZReader<R> {
         Ok((decoder, pack_size))
     }
 
-    pub fn for_each_entries<F: Fn(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
+    pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
         &mut self,
-        each: F,
+        mut each: F,
     ) -> Result<(), Error> {
         let mut entry_index = 0;
         let mut current_folder_index = -1;
