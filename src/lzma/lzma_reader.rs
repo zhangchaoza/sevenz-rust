@@ -140,7 +140,7 @@ impl<R: Read> LZMAReader<R> {
         preset_dict: Option<&[u8]>,
     ) -> Result<Self> {
         let props = reader.read_u8()?;
-        let mut dict_size = reader.read_u32::<LittleEndian>()?;
+        let dict_size = reader.read_u32::<LittleEndian>()?;
 
         let uncomp_size = reader.read_u64::<LittleEndian>()?;
         let need_mem = get_memery_usage_by_props(dict_size, props)?;

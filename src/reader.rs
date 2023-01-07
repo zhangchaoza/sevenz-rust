@@ -7,7 +7,7 @@ use bit_set::BitSet;
 use crc::Crc;
 
 use crate::{archive::*, error::Error, folder::*, password::Password};
-const CRC32: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
+pub(crate) const CRC32: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
 const MAX_MEM_LIMIT_KB: usize = usize::MAX / 1024;
 pub struct BoundedReader<R: Read> {
     inner: R,

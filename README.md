@@ -2,7 +2,9 @@
  [![Documentation](https://docs.rs/sevenz-rust/badge.svg)](https://docs.rs/sevenz-rust)
  
 This project is a 7z compressor/decompressor written in pure rust.<br/>
-And it's very much inspired by the [apache commons-compress](https://commons.apache.org/proper/commons-compress/) project.
+And it's very much inspired by the [apache commons-compress](https://commons.apache.org/proper/commons-compress/) project.<br/>
+
+The LZMA/LZMA2 decoder and all filters code was ported from [tukaani xz for java](https://tukaani.org/xz/java.html)
 
 ## Decompression
 
@@ -21,8 +23,7 @@ Supported filters:
  - [x] BCJ SPARC
  - [x] DELTA
 
-The dependence of lzma-rs was removed sine 0.1.3.<br>
-The LZMA/LZMA2 decoder and all filters code was ported from [tukaani xz for java](https://tukaani.org/xz/java.html)
+
 
 
 ### Usage
@@ -50,7 +51,19 @@ sevenz_rust::decompress_file_with_password("path/to/encrypted.7z", "path/to/outp
 ```
 
 ## Compression
-The compression feature is under development.
+Currently only support LZMA2 method.
+
+```
+[dependencies]
+sevenz-rust={version="0.2", features=["compress"]}
+```
+
+Use the helper function to create a 7z file with source path.
+```rust
+sevenz_rust::compress_to_path("examples/data/sample", "examples/data/sample.7z").expect("compress ok");
+```
+
+
 
 ## Dependencies
 - [crc](https://crates.io/crates/crc)

@@ -1,7 +1,7 @@
 #![allow(unused)]
-use crate::folder::*;
+use crate::{folder::*, method_options::MethodOptions};
 use bit_set::BitSet;
-use std::{any::Any, collections::LinkedList};
+use std::{any::Any, collections::LinkedList, sync::Arc};
 
 pub const SIGNATURE_HEADER_SIZE: u64 = 32;
 pub const SEVEN_Z_SIGNATURE: &[u8] = &[b'7', b'z', 0xBC, 0xAF, 0x27, 0x1C];
@@ -72,7 +72,8 @@ pub struct SevenZArchiveEntry {
     pub compressed_crc: u64,
     pub size: u64,
     pub compressed_size: u64,
-    pub(crate) content_methods: LinkedList<SevenZMethodConfiguration>,
+    // pub(crate) content_methods: LinkedList<SevenZMethodConfiguration>,
+    pub(crate) content_methods: Arc<Vec<SevenZMethodConfiguration>>,
 }
 
 impl SevenZArchiveEntry {
@@ -115,14 +116,23 @@ impl SevenZArchiveEntry {
 
 #[derive(Debug, Default)]
 pub struct SevenZMethodConfiguration {
-    method: SevenZMethod,
-    options: Option<Box<dyn Any>>,
+    pub method: SevenZMethod,
+    pub options: Option<MethodOptions>,
 }
 
 impl Clone for SevenZMethodConfiguration {
     fn clone(&self) -> Self {
         Self {
             method: self.method.clone(),
+            options: None,
+        }
+    }
+}
+
+impl SevenZMethodConfiguration {
+    pub fn new(method: SevenZMethod) -> Self {
+        Self {
+            method,
             options: None,
         }
     }

@@ -5,7 +5,7 @@ pub enum Error {
     UnsupportedVersion { major: u8, minor: u8 },
     ChecksumVerificationFailed,
     NextHeaderCrcMismatch,
-    Io(std::io::Error),
+    Io(std::io::Error,Cow<'static, str>),
     FileOpen(std::io::Error, String),
     Other(Cow<'static, str>),
     BadTerminatedStreamsInfo(u8),
@@ -28,11 +28,16 @@ impl Error {
 
     #[inline]
     pub fn io(e: std::io::Error) -> Self {
-        Self::Io(e)
+        Self::io_msg(e, "")
+    }
+    #[inline]
+    pub fn io_msg(e: std::io::Error, msg: impl Into<Cow<'static, str>>) -> Self {
+        Self::Io(e, msg.into())
     }
 
-    pub(crate) fn file_open(e: std::io::Error, filename: String) -> Self {
-        Self::FileOpen(e, filename)
+    #[inline]
+    pub(crate) fn file_open(e: std::io::Error, filename: impl Into<Cow<'static, str>>) -> Self {
+        Self::Io(e, filename.into())
     }
 }
 

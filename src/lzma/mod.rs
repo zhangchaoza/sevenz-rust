@@ -1,14 +1,19 @@
 mod decoder;
+mod encoder;
 mod lz;
 mod lzma2_reader;
+mod lzma_reader;
 mod range_codec;
 mod state;
-mod lzma_reader;
-pub use lzma2_reader::LZMA2Reader;
-pub use lzma_reader::LZMAReader;
+mod encoder_fast;
+mod lzma2_writer;
+mod encoder_normal;
 pub use lzma2_reader::get_memery_usage as lzma2_get_memery_usage;
+pub use lzma2_reader::LZMA2Reader;
 pub use lzma_reader::get_memery_usage as lzma_get_memery_usage;
 pub use lzma_reader::get_memery_usage_by_props as lzma_get_memery_usage_by_props;
+pub use lzma_reader::LZMAReader;
+pub use lzma2_writer::*;
 
 use state::*;
 
@@ -74,7 +79,13 @@ pub(crate) fn coder_get_dict_size(len: usize) -> usize {
         DIST_STATES - 1
     }
 }
-
+pub(crate) fn get_dist_state(len: u32) -> u32 {
+    (if (len as usize) < DIST_STATES + MATCH_LEN_MIN {
+        len as usize - MATCH_LEN_MIN
+    } else {
+        DIST_STATES - 1
+    }) as u32
+}
 impl LZMACoder {
     pub fn new(pb: usize) -> Self {
         let mut c = Self {
