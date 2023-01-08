@@ -33,4 +33,4 @@ jobs:
         target: ${{matrix.target}}
     - uses: actions/checkout@v3
     - name: Run tests
-      run: cargo test --verbose --release --features aes256
+      run: cargo test --verbose --release --all-features
