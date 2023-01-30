@@ -13,14 +13,16 @@ pub(crate) mod decoders;
 mod delta;
 #[cfg(feature = "compress")]
 mod en_funcs;
+#[cfg(feature = "compress")]
 mod encoders;
 mod error;
 pub(crate) mod folder;
-mod lzma;
 mod method_options;
 mod password;
 mod reader;
+#[cfg(feature = "compress")]
 mod writer;
+use lzma_rust as lzma;
 pub use archive::SevenZArchiveEntry;
 #[cfg(not(target_arch = "wasm32"))]
 pub use de_funcs::*;
@@ -29,4 +31,5 @@ pub use en_funcs::*;
 pub use error::Error;
 pub use password::Password;
 pub use reader::SevenZReader;
+#[cfg(feature = "compress")]
 pub use writer::SevenZWriter;

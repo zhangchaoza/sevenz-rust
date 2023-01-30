@@ -1,4 +1,4 @@
-use crate::{archive::*, encoders, reader::CRC32, Error, SevenZArchiveEntry};
+use crate::{archive::*, encoders, lzma::*, reader::CRC32, Error, SevenZArchiveEntry};
 use bit_set::BitSet;
 use byteorder::*;
 use std::{
@@ -69,7 +69,6 @@ pub struct SevenZWriter<W: Write> {
 
 #[cfg(not(target_arch = "wasm32"))]
 impl SevenZWriter<File> {
-
     /// Creates a file to write a 7z archive to
     pub fn create(path: impl AsRef<Path>) -> Result<Self> {
         let file = std::fs::File::create(path.as_ref())
@@ -78,7 +77,6 @@ impl SevenZWriter<File> {
     }
 }
 impl<W: Write + Seek> SevenZWriter<W> {
-
     /// Prepares writer to write a 7z archive to
     pub fn new(mut writer: W) -> Result<Self> {
         writer
@@ -585,41 +583,6 @@ fn write_bit_set<W: Write>(mut write: W, bs: &BitSet) -> std::io::Result<()> {
         write.write_u8(cache)?;
     }
     Ok(())
-}
-pub struct CountingWriter<W> {
-    inner: W,
-    counting: Rc<Cell<usize>>,
-    writed_bytes: usize,
-}
-
-impl<W: Write> CountingWriter<W> {
-    pub fn new(inner: W) -> Self {
-        Self {
-            inner,
-            counting: Rc::new(Cell::new(0)),
-            writed_bytes: 0,
-        }
-    }
-    pub fn writed_bytes(&self) -> usize {
-        self.writed_bytes
-    }
-
-    pub fn counting(&self) -> Rc<Cell<usize>> {
-        Rc::clone(&self.counting)
-    }
-}
-
-impl<W: Write> Write for CountingWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        let len = self.inner.write(buf)?;
-        self.writed_bytes += len;
-        self.counting.set(self.writed_bytes);
-        Ok(len)
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.flush()
-    }
 }
 
 struct CompressWrapWriter<'a, W> {

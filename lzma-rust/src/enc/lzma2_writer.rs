@@ -5,7 +5,7 @@ use std::{
 
 use byteorder::WriteBytesExt;
 
-use crate::writer::CountingWriter;
+use super::counting::CountingWriter;
 
 use super::{
     encoder::{EncodeMode, LZMAEncoder},

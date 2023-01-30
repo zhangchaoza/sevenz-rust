@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 
-use crate::lzma::LZMA2Options;
 #[derive(Debug, Clone)]
 pub enum MethodOptions {
     Num(u32),
-    LZMA2(LZMA2Options),
+    #[cfg(feature = "compress")]
+    LZMA2(crate::lzma::LZMA2Options),
 }
 
 impl From<u32> for MethodOptions {
@@ -13,8 +13,9 @@ impl From<u32> for MethodOptions {
     }
 }
 
-impl From<LZMA2Options> for MethodOptions {
-    fn from(o: LZMA2Options) -> Self {
+#[cfg(feature = "compress")]
+impl From<crate::lzma::LZMA2Options> for MethodOptions {
+    fn from(o: crate::lzma::LZMA2Options) -> Self {
         Self::LZMA2(o)
     }
 }
@@ -23,6 +24,7 @@ impl MethodOptions {
     pub fn get_lzma2_dict_size(&self) -> u32 {
         match self {
             MethodOptions::Num(n) => *n,
+            #[cfg(feature = "compress")]
             MethodOptions::LZMA2(o) => o.dict_size,
         }
     }

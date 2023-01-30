@@ -1,19 +1,19 @@
 mod decoder;
-mod encoder;
 mod lz;
 mod lzma2_reader;
 mod lzma_reader;
 mod range_codec;
 mod state;
-mod encoder_fast;
-mod lzma2_writer;
-mod encoder_normal;
+
 pub use lzma2_reader::get_memery_usage as lzma2_get_memery_usage;
 pub use lzma2_reader::LZMA2Reader;
 pub use lzma_reader::get_memery_usage as lzma_get_memery_usage;
 pub use lzma_reader::get_memery_usage_by_props as lzma_get_memery_usage_by_props;
 pub use lzma_reader::LZMAReader;
-pub use lzma2_writer::*;
+#[cfg(feature="encoder")]
+mod enc;
+#[cfg(feature="encoder")]
+pub use enc::*;
 
 use state::*;
 

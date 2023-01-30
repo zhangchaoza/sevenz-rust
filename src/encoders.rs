@@ -2,9 +2,9 @@ use std::io::Write;
 
 use crate::{
     archive::{SevenZMethod, SevenZMethodConfiguration},
+    lzma::CountingWriter,
     lzma::{LZMA2Options, LZMA2Writer},
     method_options::MethodOptions,
-    writer::CountingWriter,
     Error,
 };
 
