@@ -62,9 +62,3 @@ Use the helper function to create a 7z file with source path.
 ```rust
 sevenz_rust::compress_to_path("examples/data/sample", "examples/data/sample.7z").expect("compress ok");
 ```
-
-
-
-## Dependencies
-- [crc](https://crates.io/crates/crc)
-- [bit-set](https://crates.io/crates/bit-set)
