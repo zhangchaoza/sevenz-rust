@@ -22,6 +22,8 @@ mod password;
 mod reader;
 #[cfg(feature = "compress")]
 mod writer;
+mod filetime;
+pub use filetime::*;
 use lzma_rust as lzma;
 pub use archive::SevenZArchiveEntry;
 #[cfg(not(target_arch = "wasm32"))]

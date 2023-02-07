@@ -1,4 +1,4 @@
-use crate::{archive::*, encoders, lzma::*, reader::CRC32, Error, SevenZArchiveEntry};
+use crate::{archive::*, encoders, lzma::*, reader::CRC32, Error, SevenZArchiveEntry,filetime::FileTime};
 use bit_set::BitSet;
 use byteorder::*;
 use std::{
@@ -9,13 +9,12 @@ use std::{
     path::Path,
     rc::Rc,
     sync::Arc,
-    time::SystemTime,
 };
 
 macro_rules! write_times {
     //write_i64
     ($fn_name:tt, $nid:expr, $has_time:tt, $time:tt) => {
-        write_times!($fn_name, $nid, $has_time, $time, write_i64);
+        write_times!($fn_name, $nid, $has_time, $time, write_u64);
     };
     ($fn_name:tt, $nid:expr, $has_time:tt, $time:tt, $write_fn:tt) => {
         fn $fn_name<H: Write>(&self, header: &mut H) -> std::io::Result<()> {
@@ -44,7 +43,7 @@ macro_rules! write_times {
                 out.write_u8(0)?;
                 for file in self.files.iter() {
                     if file.$has_time {
-                        out.$write_fn::<LittleEndian>(file.$time)?;
+                        out.$write_fn::<LittleEndian>((file.$time).into())?;
                     }
                 }
                 out.flush()?;
@@ -115,12 +114,8 @@ impl<W: Write + Seek> SevenZWriter<W> {
 
         if let Ok(meta) = path.metadata() {
             if let Ok(modified) = meta.modified() {
-                entry.last_modified_date = modified
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .map(|a| a.as_millis() as i64)
-                    .unwrap_or_default();
-
-                entry.has_last_modified_date = entry.last_modified_date > 0;
+                entry.last_modified_date = modified.into();
+                entry.has_last_modified_date = entry.last_modified_date.raw() > 0;
             }
         }
         entry
@@ -170,8 +165,6 @@ impl<W: Write + Seek> SevenZWriter<W> {
                         .map_err(|e| Error::io_msg(e, format!("Encode entry:{}", entry.name())))?;
                     w.write(&[])
                         .map_err(|e| Error::io_msg(e, format!("Encode entry:{}", entry.name())))?;
-                    // std::io::copy(&mut r, &mut w)
-                    //     .map_err(|e| Error::io_msg(e, format!("Encode entry:{}", entry.name())))?;
 
                     (w.crc_value(), write_len)
                 };
@@ -478,40 +471,6 @@ impl<W: Write + Seek> SevenZWriter<W> {
         header.write_all(temp.as_slice())?;
         Ok(())
     }
-    // fn write_file_ctimes<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-    //     let mut num = 0;
-    //     for entry in self.files.iter() {
-    //         if entry.has_creation_date {
-    //             num += 1;
-    //         }
-    //     }
-    //     if num > 0 {
-    //         header.write_u8(K_C_TIME)?;
-    //         let mut temp: Vec<u8> = Vec::with_capacity(128);
-    //         let mut out = temp.as_mut_slice();
-    //         if num != self.files.len() {
-    //             out.write_u8(0)?;
-    //             let mut times = BitSet::with_capacity(self.files.len());
-    //             for i in 0..self.files.len() {
-    //                 if self.files[i].has_creation_date {
-    //                     times.insert(i);
-    //                 }
-    //             }
-    //             write_bit_set(out, &times);
-    //         } else {
-    //             out.write_u8(1)?;
-    //         }
-    //         out.write_u8(0)?;
-    //         for file in self.files.iter() {
-    //             if file.has_creation_date {
-    //                 out.write_i64::<LittleEndian>(file.creation_date)?;
-    //             }
-    //         }
-    //         write_u64(header, temp.len() as u64)?;
-    //         header.write_all(&temp)?;
-    //     }
-    //     Ok(())
-    // }
 
     write_times!(
         write_file_ctimes,
@@ -533,16 +492,6 @@ impl<W: Write + Seek> SevenZWriter<W> {
         windows_attributes,
         write_u32
     );
-
-    // fn write_file_atimes<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-    //     Ok(())
-    // }
-    // fn write_file_mtimes<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-    //     Ok(())
-    // }
-    // fn write_file_windows_attrs<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-    //     Ok(())
-    // }
 }
 
 fn write_u64<W: Write>(header: &mut W, mut value: u64) -> std::io::Result<()> {

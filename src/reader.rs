@@ -445,7 +445,7 @@ impl Archive {
                     for i in 0..num_files {
                         files[i].has_creation_date = times_defined.contains(i);
                         if files[i].has_creation_date {
-                            files[i].creation_date = read_u64le(header)? as i64;
+                            files[i].creation_date = read_u64le(header)?.into();
                         }
                     }
                 }
@@ -461,7 +461,7 @@ impl Archive {
                     for i in 0..num_files {
                         files[i].has_access_date = times_defined.contains(i);
                         if files[i].has_access_date {
-                            files[i].access_date = read_u64le(header)? as i64;
+                            files[i].access_date = read_u64le(header)?.into();
                         }
                     }
                 }
@@ -477,7 +477,7 @@ impl Archive {
                     for i in 0..num_files {
                         files[i].has_last_modified_date = times_defined.contains(i);
                         if files[i].has_last_modified_date {
-                            files[i].last_modified_date = read_u64le(header)? as i64;
+                            files[i].last_modified_date = read_u64le(header)?.into();
                         }
                     }
                 }

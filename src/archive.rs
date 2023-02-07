@@ -1,7 +1,7 @@
 #![allow(unused)]
-use crate::{folder::*, method_options::MethodOptions};
+use crate::{folder::*, method_options::MethodOptions, FileTime};
 use bit_set::BitSet;
-use std::{any::Any, collections::LinkedList, sync::Arc};
+use std::{any::Any, collections::LinkedList, sync::Arc, time::SystemTime};
 
 pub const SIGNATURE_HEADER_SIZE: u64 = 32;
 pub const SEVEN_Z_SIGNATURE: &[u8] = &[b'7', b'z', 0xBC, 0xAF, 0x27, 0x1C];
@@ -62,9 +62,9 @@ pub struct SevenZArchiveEntry {
     pub has_creation_date: bool,
     pub has_last_modified_date: bool,
     pub has_access_date: bool,
-    pub creation_date: i64,
-    pub last_modified_date: i64,
-    pub access_date: i64,
+    pub creation_date: FileTime,
+    pub last_modified_date: FileTime,
+    pub access_date: FileTime,
     pub has_windows_attributes: bool,
     pub windows_attributes: u32,
     pub has_crc: bool,
@@ -89,11 +89,11 @@ impl SevenZArchiveEntry {
         self.has_stream
     }
 
-    pub fn creation_date(&self) -> i64 {
+    pub fn creation_date(&self) -> FileTime {
         self.creation_date
     }
 
-    pub fn last_modified_date(&self) -> i64 {
+    pub fn last_modified_date(&self) -> FileTime {
         self.last_modified_date
     }
 
@@ -105,7 +105,7 @@ impl SevenZArchiveEntry {
         self.windows_attributes
     }
 
-    pub fn access_date(&self) -> i64 {
+    pub fn access_date(&self) -> FileTime {
         self.access_date
     }
 
