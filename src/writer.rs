@@ -126,7 +126,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         &mut self,
         mut entry: SevenZArchiveEntry,
         reader: Option<R>,
-    ) -> Result<()> {
+    ) -> Result<&SevenZArchiveEntry> {
         if !entry.is_directory {
             if let Some(mut r) = reader {
                 if entry.content_methods.is_empty() {
@@ -183,7 +183,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
                 }
                 self.num_non_empty_streams += 1;
                 self.files.push(entry);
-                return Ok(());
+                return Ok(self.files.last().unwrap());
             }
         }
         entry.has_stream = false;
@@ -191,7 +191,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         entry.compressed_size = 0;
         entry.has_crc = false;
         self.files.push(entry);
-        Ok(())
+        Ok(self.files.last().unwrap())
     }
 
     fn create_writer<'a, O: Write + 'a>(
