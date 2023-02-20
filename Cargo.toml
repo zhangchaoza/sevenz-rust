@@ -27,7 +27,7 @@ crc = "3.0.0"
 lzma-rust = {path = "lzma-rust", default-features = false, version = "0.1.0"}
 sha2 = {version = "^0.9"}
 zstd = "0.12.3+zstd.1.5.2"
-filetime="0.2.20"
+filetime_creation = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3.60"

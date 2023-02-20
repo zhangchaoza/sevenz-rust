@@ -133,7 +133,9 @@ pub fn default_entry_extract_fn(
             ft::set_file_handle_times(
                 writer.get_ref(), 
                 Some(ft::FileTime::from_system_time(entry.access_date().into())), 
-                Some(ft::FileTime::from_system_time(entry.last_modified_date().into())))
+                Some(ft::FileTime::from_system_time(entry.last_modified_date().into())),
+                Some(ft::FileTime::from_system_time(entry.creation_date().into()))
+            )
             .unwrap_or_default();
         }
     }

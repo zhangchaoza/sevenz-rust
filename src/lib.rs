@@ -4,7 +4,7 @@ extern crate wasm_bindgen;
 mod aes256sha256;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
-extern crate filetime as ft;
+extern crate filetime_creation as ft;
 pub(crate) mod archive;
 mod bcj;
 #[cfg(not(target_arch = "wasm32"))]
