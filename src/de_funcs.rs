@@ -130,6 +130,13 @@ pub fn default_entry_extract_fn(
         if entry.size() > 0 {
             let mut writer = BufWriter::new(file);
             std::io::copy(reader, &mut writer).map_err(Error::io)?;
+            ft::set_file_handle_times(
+                writer.get_ref(), 
+                Some(ft::FileTime::from_system_time(entry.access_date().into())), 
+                Some(ft::FileTime::from_system_time(entry.last_modified_date().into())),
+                Some(ft::FileTime::from_system_time(entry.creation_date().into()))
+            )
+            .unwrap_or_default();
         }
     }
     Ok(true)

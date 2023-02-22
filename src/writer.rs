@@ -1,4 +1,4 @@
-use crate::{archive::*, encoders, lzma::*, reader::CRC32, Error, SevenZArchiveEntry,filetime::FileTime};
+use crate::{archive::*, encoders, lzma::*, reader::CRC32, Error, SevenZArchiveEntry};
 use bit_set::BitSet;
 use byteorder::*;
 use std::{

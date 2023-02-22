@@ -4,7 +4,7 @@ extern crate wasm_bindgen;
 mod aes256sha256;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
-
+extern crate filetime_creation as ft;
 pub(crate) mod archive;
 mod bcj;
 #[cfg(not(target_arch = "wasm32"))]
@@ -23,7 +23,7 @@ mod reader;
 #[cfg(feature = "compress")]
 mod writer;
 mod filetime;
-pub use filetime::*;
+pub use crate::filetime::*;
 use lzma_rust as lzma;
 pub use archive::SevenZArchiveEntry;
 #[cfg(not(target_arch = "wasm32"))]
