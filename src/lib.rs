@@ -18,14 +18,15 @@ mod encoders;
 mod error;
 pub(crate) mod folder;
 mod method_options;
+pub use method_options::*;
 mod password;
 mod reader;
 #[cfg(feature = "compress")]
 mod writer;
 mod filetime;
 pub use crate::filetime::*;
-use lzma_rust as lzma;
-pub use archive::SevenZArchiveEntry;
+pub use lzma_rust as lzma;
+pub use archive::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use de_funcs::*;
 #[cfg(feature = "compress")]

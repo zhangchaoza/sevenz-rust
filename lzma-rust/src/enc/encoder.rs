@@ -284,20 +284,6 @@ impl<W: Write> LZMAEncoder<W> {
 
         assert!(self.read_ahead >= 0);
         let pos_state = (self.lz().get_pos() - self.read_ahead) as u32 & self.pos_mask;
-        // let pos2 = self.lz().get_pos();
-
-        // let s = 1000 ;//187782;
-        // let e = 3000;//187782;
-        // if ((s)..=(e)).contains(&self.encode_count) {
-        //     println!(
-        //         "pos={},len={},back={},read_ahead={},pos2={}",
-        //         pos,
-        //         len,
-        //         self.back,
-        //         self.read_ahead,
-        //         pos2,
-        //     );
-        // }
 
         if self.back == -1 {
             assert!(len == 1);

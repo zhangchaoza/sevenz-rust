@@ -422,6 +422,7 @@ impl NormalEncoderMode {
             if _match == matches.count as usize {
                 break;
             }
+            len += 1;
         }
     }
 }

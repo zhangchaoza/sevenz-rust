@@ -86,7 +86,7 @@ impl LZMA2Options {
         }
     }
 
-    fn set_preset(&mut self, preset: u32) {
+    pub fn set_preset(&mut self, preset: u32) {
         if preset > 9 {
             return;
         }
@@ -237,7 +237,7 @@ impl<W: Write> LZMA2Writer<W> {
             uncompressed_size -= chunk_size;
             self.dict_reset_needed = false;
         }
-        self.state_reset_needed = false;
+        self.state_reset_needed = true;
         Ok(())
     }
     fn write_chunk(&mut self) -> std::io::Result<()> {
