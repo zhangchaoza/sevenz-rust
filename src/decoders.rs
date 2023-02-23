@@ -19,6 +19,7 @@ pub enum Decoder<R: Read> {
     LZMA2(LZMA2Reader<R>),
     BCJ(SimpleReader<R>),
     Delta(DeltaReader<R>),
+    #[cfg(feature = "zstd")]
     ZSTD(zstd::Decoder<'static,std::io::BufReader<R>>),
     #[cfg(feature = "aes256")]
     AES256SHA256(Aes256Sha256Decoder<R>),
@@ -27,6 +28,7 @@ pub enum Decoder<R: Read> {
 impl<R: Read> Read for Decoder<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self {
+            #[cfg(feature = "zstd")]
             Decoder::ZSTD(r) => r.read(buf),
             Decoder::COPY(r) => r.read(buf),
             Decoder::LZMA(r) => r.read(buf),
@@ -57,6 +59,7 @@ pub fn add_decoder<I: Read>(
     };
     match method.id() {
         SevenZMethod::ID_COPY => Ok(Decoder::COPY(input)),
+        #[cfg(feature = "zstd")]
         SevenZMethod::ID_ZSTD => {
             let props = coder.properties[0];
             let zs = zstd::Decoder::new(input).unwrap();

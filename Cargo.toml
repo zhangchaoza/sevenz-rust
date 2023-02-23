@@ -26,7 +26,7 @@ cbc = {version = "0.1", optional = true}
 crc = "3.0.0"
 lzma-rust = {path = "lzma-rust", default-features = false, version = "0.1.1"}
 sha2 = {version = "^0.9"}
-zstd = "0.12.3+zstd.1.5.2"
+zstd = {version = "0.12.3+zstd.1.5.2", optional = true}
 filetime_creation = "0.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
