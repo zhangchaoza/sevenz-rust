@@ -379,13 +379,7 @@ impl Archive {
                 }
                 K_EMPTY_FILE => {
                     let n = if let Some(s) = &is_empty_stream {
-                        let mut n = 0;
-                        for i in 0..s.len() {
-                            if s.contains(i) {
-                                n += 1;
-                            }
-                        }
-                        n as usize
+                        s.len()
                     } else {
                         return Err(Error::other(
                             "Header format error: kEmptyStream must appear before kEmptyFile",
@@ -395,13 +389,7 @@ impl Archive {
                 }
                 K_ANTI => {
                     let n = if let Some(s) = is_empty_stream.as_ref() {
-                        let mut n = 0;
-                        for i in 0..s.len() {
-                            if s.contains(i) {
-                                n += 1;
-                            }
-                        }
-                        n as usize
+                        s.len()
                     } else {
                         return Err(Error::other(
                             "Header format error: kEmptyStream must appear before kEmptyFile",
@@ -1153,3 +1141,14 @@ impl<R: Read + Seek> SevenZReader<R> {
         Ok(())
     }
 }
+
+pub struct FolderDecoder<'a, R: Read + Seek> {
+    folder_index: usize,
+    reader: &'a mut SevenZReader<R>,
+}
+
+// impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
+//     pub fn entries(&self)->&SevenZArchiveEntry{
+//         self.reader.archive.stream_map.folder_first_file_index[self.folder_index];
+//     }
+// }
