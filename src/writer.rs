@@ -277,10 +277,32 @@ impl<W: Write + Seek> SevenZWriter<W> {
             }
         }
         header.write_u8(K_CRC)?;
+        let all_crc_defined = self.files.iter().all(|f| f.compressed_crc != 0);
+        if all_crc_defined {
         header.write_u8(1)?; // all defined
         for entry in self.files.iter() {
             if entry.has_stream {
                 header.write_u32::<LittleEndian>(entry.compressed_crc as u32)?;
+            }
+            }
+        } else {
+            header.write_u8(0)?; // all defined
+            let mut crc_define_bits = BitSet::with_capacity(self.num_non_empty_streams);
+
+            let mut i = 0;
+            for entry in self.files.iter().filter(|f| f.has_stream) {
+                if entry.compressed_crc != 0 {
+                    crc_define_bits.insert(i);
+                }
+                i += 1;
+            }
+            let mut temp = Vec::with_capacity(self.num_non_empty_streams);
+            write_bit_set(&mut temp, &crc_define_bits)?;
+            header.write_all(&temp)?;
+            for entry in self.files.iter() {
+                if entry.has_stream && entry.compressed_crc != 0 {
+                    header.write_u32::<LittleEndian>(entry.compressed_crc as u32)?;
+                }
             }
         }
 
@@ -487,7 +509,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
     );
     write_times!(
         write_file_windows_attrs,
-        K_M_TIME,
+        K_WIN_ATTRIBUTES,
         has_windows_attributes,
         windows_attributes,
         write_u32
@@ -519,11 +541,12 @@ fn write_u64<W: Write>(header: &mut W, mut value: u64) -> std::io::Result<()> {
 fn write_bit_set<W: Write>(mut write: W, bs: &BitSet) -> std::io::Result<()> {
     let mut cache = 0;
     let mut shift = 7;
-    for i in 0..bs.len() {
+    for i in 0..bs.get_ref().len() {
         let set = if bs.contains(i) { 1 } else { 0 };
         cache |= set << shift;
         shift -= 1;
         if shift < 0 {
+            write.write_u8(cache)?;
             shift = 7;
             cache = 0;
         }
