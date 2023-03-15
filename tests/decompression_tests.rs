@@ -117,6 +117,7 @@ fn decompress_copy_lzma2_single_file() {
     assert_eq!(read_to_string(file1_path).unwrap(), "simple copy encoding");
 }
 
+#[cfg(feature = "bzip2")]
 #[test]
 fn decompress_bzip2_file() {
     let mut source_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
