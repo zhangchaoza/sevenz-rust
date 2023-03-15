@@ -1,6 +1,8 @@
 use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
+#[cfg(feature = "bzip2")]
+use bzip2::read::BzDecoder;
 
 #[cfg(feature = "aes256")]
 use crate::aes256sha256::Aes256Sha256Decoder;
@@ -20,7 +22,9 @@ pub enum Decoder<R: Read> {
     BCJ(SimpleReader<R>),
     Delta(DeltaReader<R>),
     #[cfg(feature = "zstd")]
-    ZSTD(zstd::Decoder<'static,std::io::BufReader<R>>),
+    ZSTD(zstd::Decoder<'static, std::io::BufReader<R>>),
+    #[cfg(feature = "bzip2")]
+    BZip2(BzDecoder<R>),
     #[cfg(feature = "aes256")]
     AES256SHA256(Aes256Sha256Decoder<R>),
 }
@@ -35,6 +39,8 @@ impl<R: Read> Read for Decoder<R> {
             Decoder::LZMA2(r) => r.read(buf),
             Decoder::BCJ(r) => r.read(buf),
             Decoder::Delta(r) => r.read(buf),
+            #[cfg(feature = "bzip2")]
+            Decoder::BZip2(r) => r.read(buf),
             #[cfg(feature = "aes256")]
             Decoder::AES256SHA256(r) => r.read(buf),
         }
@@ -116,6 +122,11 @@ pub fn add_decoder<I: Read>(
             };
             let de = DeltaReader::new(input, d as usize);
             Ok(Decoder::Delta(de))
+        }
+        #[cfg(feature = "bzip2")]
+        SevenZMethod::ID_BZIP2 => {
+            let de = BzDecoder::new(input);
+            Ok(Decoder::BZip2(de))
         }
         #[cfg(feature = "aes256")]
         SevenZMethod::ID_AES256SHA256 => {

@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 aes256 = ["aes", "cbc"]
+bzip2 = ["dep:bzip2"]
 compress = ["lzma-rust/encoder"]
 default = ["compress"]
 
@@ -22,6 +23,7 @@ default = ["compress"]
 aes = {version = "0.8", optional = true}
 bit-set = "0.5.3"
 byteorder = "1.4"
+bzip2 = {version = "0.4", optional = true}
 cbc = {version = "0.1", optional = true}
 crc = "3.0.0"
 lzma-rust = {path = "lzma-rust", default-features = false, version = "0.1.1"}

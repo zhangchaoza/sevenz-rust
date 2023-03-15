@@ -9,6 +9,7 @@ The LZMA/LZMA2 decoder and all filters code was ported from [tukaani xz for java
 ## Decompression
 
 Supported codecs:
+ - [x] BZIP2
  - [x] COPY
  - [x] LZMA
  - [x] LZMA2
