@@ -9,10 +9,11 @@ The LZMA/LZMA2 decoder and all filters code was ported from [tukaani xz for java
 ## Decompression
 
 Supported codecs:
- - [x] BZIP2
+ - [x] BZIP2 (require feature 'bzip2')
  - [x] COPY
  - [x] LZMA
  - [x] LZMA2
+ - [x] ZSTD  (require feature 'zstd')
 
 
 Supported filters:
@@ -31,7 +32,7 @@ Supported filters:
 
 ```
 [dependencies]
-sevenz-rust={version="0.1.5"}
+sevenz-rust={version="0.2.9"}
 ```
 
 Decompress source file "data/sample.7z" to dest path "data/sample"
