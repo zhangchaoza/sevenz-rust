@@ -157,6 +157,7 @@ impl SevenZMethod {
     pub const ID_BCJ_ARM_THUMB: &'static [u8] = &[0x03, 0x03, 0x07, 0x01];
     pub const ID_BCJ_SPARC: &'static [u8] = &[0x03, 0x03, 0x08, 0x05];
     pub const ID_DELTA: &'static [u8] = &[0x03];
+    pub const ID_BZIP2: &'static [u8] = &[0x04, 0x02, 0x02];
     pub const ID_AES256SHA256: &'static [u8] = &[0x06, 0xf1, 0x07, 0x01];
 
     /// no compression
@@ -169,7 +170,7 @@ impl SevenZMethod {
     pub const DEFLATE: Self = Self("DEFLATE", Self::ID_DEFLATE);
     pub const DEFLATE64: Self = Self("DEFLATE64", Self::ID_DEFLATE64);
 
-    pub const BZIP2: Self = Self("BZIP2", &[0x04, 0x02, 0x02]);
+    pub const BZIP2: Self = Self("BZIP2", Self::ID_BZIP2);
     pub const AES256SHA256: Self = Self("AES256SHA256", Self::ID_AES256SHA256);
 
     pub const BCJ_X86_FILTER: Self = Self("BCJ_X86", Self::ID_BCJ_X86);
