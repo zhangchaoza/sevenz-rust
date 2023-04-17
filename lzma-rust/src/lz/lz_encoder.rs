@@ -351,7 +351,7 @@ impl LZEncoder {
         let mut len = 0;
 
         while len < len_limit
-            && self.buf[(cur_pos + len as usize)] == self.buf[(back_pos + len as usize)]
+            && self.buf[cur_pos + len as usize] == self.buf[back_pos + len as usize]
         {
             len += 1;
         }
@@ -400,7 +400,7 @@ impl LZEncoder {
 impl Drop for LZEncoder {
     fn drop(&mut self) {
         unsafe {
-            Box::from_raw(self.match_finder.as_ptr());
+            drop(Box::from_raw(self.match_finder.as_ptr()));
         }
     }
 }

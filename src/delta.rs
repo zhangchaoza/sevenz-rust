@@ -1,7 +1,7 @@
 use std::io::Read;
 
 const MAX_DISTANCE: usize = 256;
-const MIN_DISTANCE: usize = 1;
+const _MIN_DISTANCE: usize = 1;
 const DIS_MASK: usize = MAX_DISTANCE - 1;
 struct Delta {
     distance: usize,
