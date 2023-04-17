@@ -36,11 +36,7 @@ impl BCJFilter {
 
                 let src = ((b2 << 16) | (b1 << 8) | (b0)) << 2;
                 let p = (self.pos + i) as i32;
-                let dest = if self.is_encoder {
-                    src + p
-                } else {
-                    src - p
-                };
+                let dest = if self.is_encoder { src + p } else { src - p };
                 let dest = dest >> 2;
                 buf[i + 2] = ((dest >> 16) & 0xff) as u8;
                 buf[i + 1] = ((dest >> 8) & 0xff) as u8;

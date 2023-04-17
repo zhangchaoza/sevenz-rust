@@ -19,7 +19,6 @@ fn compress_empty_file() {
     assert_eq!(std::fs::read_to_string(&decompress_file).unwrap(), "");
 }
 
-
 #[cfg(feature = "compress")]
 #[test]
 fn compress_one_file_with_content() {
@@ -35,14 +34,15 @@ fn compress_one_file_with_content() {
     let decompress_file = decompress_dest.join("file1.txt");
     assert!(decompress_file.exists());
 
-    assert_eq!(std::fs::read_to_string(&decompress_file).unwrap(), "file1 with content");
+    assert_eq!(
+        std::fs::read_to_string(&decompress_file).unwrap(),
+        "file1 with content"
+    );
 }
-
 
 #[cfg(feature = "compress")]
 #[test]
 fn compress_folder_with_one_file() {
-
     let temp_dir = tempdir().unwrap();
     let folder = temp_dir.path().join("folder");
     std::fs::create_dir(&folder).unwrap();
@@ -56,15 +56,15 @@ fn compress_folder_with_one_file() {
     let decompress_file = decompress_dest.join("file1.txt");
     assert!(decompress_file.exists());
 
-    assert_eq!(std::fs::read_to_string(&decompress_file).unwrap(), "file1 with content");
+    assert_eq!(
+        std::fs::read_to_string(&decompress_file).unwrap(),
+        "file1 with content"
+    );
 }
-
-
 
 #[cfg(feature = "compress")]
 #[test]
 fn compress_folder_with_multi_file() {
-
     let temp_dir = tempdir().unwrap();
     let folder = temp_dir.path().join("folder");
     std::fs::create_dir(&folder).unwrap();
@@ -76,7 +76,6 @@ fn compress_folder_with_multi_file() {
         std::fs::write(folder.join(&name), &content).unwrap();
         files.push(name);
         contents.push(content);
-
     }
     let dest = temp_dir.path().join("folder.7z");
     compress_to_path(&folder, &dest).expect("compress ok");
@@ -84,7 +83,7 @@ fn compress_folder_with_multi_file() {
     let decompress_dest = temp_dir.path().join("decompress");
     decompress_file(dest, &decompress_dest).expect("decompress ok");
     assert!(decompress_dest.exists());
-    for i in 0..files.len(){
+    for i in 0..files.len() {
         let name = &files[i];
         let content = &contents[i];
         let decompress_file = decompress_dest.join(name);
@@ -93,12 +92,9 @@ fn compress_folder_with_multi_file() {
     }
 }
 
-
-
 #[cfg(feature = "compress")]
 #[test]
-fn compress_folder_with_nested_folder(){
-
+fn compress_folder_with_nested_folder() {
     let temp_dir = tempdir().unwrap();
     let folder = temp_dir.path().join("folder");
     let inner = folder.join("a/b/c");
@@ -113,5 +109,8 @@ fn compress_folder_with_nested_folder(){
     let decompress_file = decompress_dest.join("a/b/c/file1.txt");
     assert!(decompress_file.exists());
 
-    assert_eq!(std::fs::read_to_string(&decompress_file).unwrap(), "file1 with content");
+    assert_eq!(
+        std::fs::read_to_string(&decompress_file).unwrap(),
+        "file1 with content"
+    );
 }

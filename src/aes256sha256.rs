@@ -152,8 +152,11 @@ impl<R: Read + Seek> Seek for Aes256Sha256Decoder<R> {
                 }
             }
             std::io::SeekFrom::End(_) => {
-                return Err(std::io::Error::new(std::io::ErrorKind::Unsupported,"Aes256 decoder unsupport seek from end"));
-            },
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "Aes256 decoder unsupport seek from end",
+                ));
+            }
             std::io::SeekFrom::Current(n) => {
                 let n = n.min(len as i64);
                 if n < 0 {

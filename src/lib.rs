@@ -19,19 +19,19 @@ mod error;
 pub(crate) mod folder;
 mod method_options;
 pub use method_options::*;
+mod filetime;
 mod password;
 mod reader;
 #[cfg(feature = "compress")]
 mod writer;
-mod filetime;
 pub use crate::filetime::*;
-pub use lzma_rust as lzma;
 pub use archive::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use de_funcs::*;
 #[cfg(feature = "compress")]
 pub use en_funcs::*;
 pub use error::Error;
+pub use lzma_rust as lzma;
 pub use password::Password;
 pub use reader::SevenZReader;
 #[cfg(feature = "compress")]
