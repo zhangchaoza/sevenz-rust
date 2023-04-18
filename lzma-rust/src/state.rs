@@ -6,12 +6,12 @@ pub const STATES: usize = 12;
 
 const LIT_STATES: u8 = 7;
 const LIT_LIT: u8 = 0;
-const MATCH_LIT_LIT: u8 = 1;
-const REP_LIT_LIT: u8 = 2;
+const _MATCH_LIT_LIT: u8 = 1;
+const _REP_LIT_LIT: u8 = 2;
 const SHORTREP_LIT_LIT: u8 = 3;
-const MATCH_LIT: u8 = 4;
-const REP_LIT: u8 = 5;
-const SHORTREP_LIT: u8 = 6;
+const _MATCH_LIT: u8 = 4;
+const _REP_LIT: u8 = 5;
+const _SHORTREP_LIT: u8 = 6;
 const LIT_MATCH: u8 = 7;
 const LIT_LONGREP: u8 = 8;
 const LIT_SHORTREP: u8 = 9;

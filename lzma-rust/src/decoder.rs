@@ -19,9 +19,9 @@ pub struct LZMADecoder<R> {
 impl<R> Drop for LZMADecoder<R> {
     fn drop(&mut self) {
         unsafe {
-            Box::from_raw(self.literal_decoder.as_ptr());
-            Box::from_raw(self.match_len_decoder.as_ptr());
-            Box::from_raw(self.rep_len_decoder.as_ptr());
+            drop(Box::from_raw(self.literal_decoder.as_ptr()));
+            drop(Box::from_raw(self.match_len_decoder.as_ptr()));
+            drop(Box::from_raw(self.rep_len_decoder.as_ptr()));
         }
     }
 }

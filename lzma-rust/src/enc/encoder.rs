@@ -236,7 +236,7 @@ impl<W: Write> LZMAEncoder<W> {
         unsafe { &mut *self.lz.as_ptr() }
     }
 
-    pub fn encode_for_lzma1(&mut self) -> std::io::Result<()> {
+    pub fn _encode_for_lzma1(&mut self) -> std::io::Result<()> {
         if !unsafe { self.lz.as_mut() }.is_started() && !self.encode_init()? {
             return Ok(());
         }
@@ -244,7 +244,7 @@ impl<W: Write> LZMAEncoder<W> {
         Ok(())
     }
 
-    pub fn encode_lzma1_end_marker(&mut self) -> std::io::Result<()> {
+    pub fn _encode_lzma1_end_marker(&mut self) -> std::io::Result<()> {
         let pos_state = (self.lz().get_pos() - self.read_ahead) as u32 & self.coder.pos_mask;
         let rc = unsafe { &mut *self.rc.as_ptr() };
         rc.encode_bit(
@@ -638,11 +638,11 @@ impl<W> DerefMut for LZMAEncoder<W> {
 impl<W> Drop for LZMAEncoder<W> {
     fn drop(&mut self) {
         unsafe {
-            Box::from_raw(self.lz.as_ptr());
-            Box::from_raw(self.literal_encoder.as_ptr());
-            Box::from_raw(self.match_len_encoder.as_ptr());
-            Box::from_raw(self.rep_len_encoder.as_ptr());
-            Box::from_raw(self.mode.as_ptr());
+            drop(Box::from_raw(self.lz.as_ptr()));
+            drop(Box::from_raw(self.literal_encoder.as_ptr()));
+            drop(Box::from_raw(self.match_len_encoder.as_ptr()));
+            drop(Box::from_raw(self.rep_len_encoder.as_ptr()));
+            drop(Box::from_raw(self.mode.as_ptr()));
         }
     }
 }

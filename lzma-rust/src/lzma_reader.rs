@@ -47,8 +47,8 @@ pub struct LZMAReader<R> {
 impl<R> Drop for LZMAReader<R> {
     fn drop(&mut self) {
         unsafe {
-            Box::from_raw(self.lz.as_ptr());
-            Box::from_raw(self.rc.as_ptr());
+            drop(Box::from_raw(self.lz.as_ptr()));
+            drop(Box::from_raw(self.rc.as_ptr()));
             self.reader.clone().release();
         }
     }

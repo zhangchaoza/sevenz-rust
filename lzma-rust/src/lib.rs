@@ -172,7 +172,7 @@ pub(crate) struct LiteralSubcoder {
 
 impl LiteralSubcoder {
     pub fn new() -> Self {
-        let mut probs = [0u16; 0x300];
+        let probs = [0u16; 0x300];
         // init_probs(&mut probs);
         Self { probs }
     }

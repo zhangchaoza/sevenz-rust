@@ -1142,7 +1142,7 @@ impl<R: Read + Seek> SevenZReader<R> {
     }
 }
 
-pub struct FolderDecoder<'a, R: Read + Seek> {
+pub struct _FolderDecoder<'a, R: Read + Seek> {
     folder_index: usize,
     reader: &'a mut SevenZReader<R>,
 }
