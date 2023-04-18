@@ -103,4 +103,3 @@ impl BCJFilter {
 fn test_86_ms_byte(b: u8) -> bool {
     b == 0x00 || b == 0xff
 }
-

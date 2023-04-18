@@ -5,7 +5,7 @@ pub enum Error {
     UnsupportedVersion { major: u8, minor: u8 },
     ChecksumVerificationFailed,
     NextHeaderCrcMismatch,
-    Io(std::io::Error,Cow<'static, str>),
+    Io(std::io::Error, Cow<'static, str>),
     FileOpen(std::io::Error, String),
     Other(Cow<'static, str>),
     BadTerminatedStreamsInfo(u8),

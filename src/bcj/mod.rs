@@ -1,7 +1,7 @@
 mod arm;
-mod x86;
 mod ppc;
 mod sparc;
+mod x86;
 
 use std::io::Read;
 
@@ -75,7 +75,8 @@ impl<R> SimpleReader<R> {
     #[inline]
     pub fn new_ppc(inner: R) -> Self {
         Self::new(inner, BCJFilter::new_power_pc(0, false))
-    } #[inline]
+    }
+    #[inline]
     pub fn new_sparc(inner: R) -> Self {
         Self::new(inner, BCJFilter::new_sparc(0, false))
     }

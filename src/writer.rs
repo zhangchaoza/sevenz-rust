@@ -279,11 +279,11 @@ impl<W: Write + Seek> SevenZWriter<W> {
         header.write_u8(K_CRC)?;
         let all_crc_defined = self.files.iter().all(|f| f.compressed_crc != 0);
         if all_crc_defined {
-        header.write_u8(1)?; // all defined
-        for entry in self.files.iter() {
-            if entry.has_stream {
-                header.write_u32::<LittleEndian>(entry.compressed_crc as u32)?;
-            }
+            header.write_u8(1)?; // all defined
+            for entry in self.files.iter() {
+                if entry.has_stream {
+                    header.write_u32::<LittleEndian>(entry.compressed_crc as u32)?;
+                }
             }
         } else {
             header.write_u8(0)?; // all defined

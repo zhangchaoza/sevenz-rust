@@ -1,5 +1,5 @@
 //! 7z Compressor helper functions
-//! 
+//!
 
 use std::{
     fs::File,
