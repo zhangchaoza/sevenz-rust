@@ -20,7 +20,7 @@ pub fn decompress_file(src_path: impl AsRef<Path>, dest: impl AsRef<Path>) -> Re
 pub fn decompress_file_with_extract_fn(
     src_path: impl AsRef<Path>,
     dest: impl AsRef<Path>,
-    extract_fn: impl Fn(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
+    extract_fn: impl FnMut(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
 ) -> Result<(), Error> {
     let file = std::fs::File::open(src_path.as_ref())
         .map_err(|e| Error::file_open(e, src_path.as_ref().to_string_lossy().to_string()))?;
@@ -38,7 +38,7 @@ pub fn decompress<R: Read + Seek>(src_reader: R, dest: impl AsRef<Path>) -> Resu
 pub fn decompress_with_extract_fn<R: Read + Seek>(
     src_reader: R,
     dest: impl AsRef<Path>,
-    extract_fn: impl Fn(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
+    extract_fn: impl FnMut(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
 ) -> Result<(), Error> {
     decompress_impl(src_reader, dest, Password::empty(), extract_fn)
 }
@@ -76,7 +76,7 @@ pub fn decompress_with_extract_fn_and_password<R: Read + Seek>(
     mut src_reader: R,
     dest: impl AsRef<Path>,
     password: Password,
-    extract_fn: impl Fn(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
+    extract_fn: impl FnMut(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
 ) -> Result<(), Error> {
     decompress_impl(src_reader, dest, password, extract_fn)
 }
@@ -86,7 +86,7 @@ fn decompress_impl<R: Read + Seek>(
     mut src_reader: R,
     dest: impl AsRef<Path>,
     password: Password,
-    extract_fn: impl Fn(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
+    mut extract_fn: impl FnMut(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,
 ) -> Result<(), Error> {
     use std::io::SeekFrom;
 
