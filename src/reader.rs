@@ -835,7 +835,7 @@ impl Archive {
         for _ in 0..num_bind_pairs {
             let bp = BindPair {
                 in_index: read_u64(header)?,
-                out_inex: read_u64(header)?,
+                out_index: read_u64(header)?,
             };
             bind_pairs.push(bp);
         }

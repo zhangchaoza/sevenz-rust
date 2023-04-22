@@ -27,7 +27,7 @@ impl Folder {
     pub fn find_bind_pair_for_out_stream(&self, index: usize) -> Option<usize> {
         let index = index as u64;
         for i in 0..self.bind_pairs.len() {
-            if self.bind_pairs[i].out_inex == index {
+            if self.bind_pairs[i].out_index == index {
                 return Some(i);
             }
         }
@@ -85,7 +85,7 @@ impl Coder {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct BindPair {
     pub in_index: u64,
-    pub out_inex: u64,
+    pub out_index: u64,
 }
 
 pub struct OrderedCoderIter<'a> {
