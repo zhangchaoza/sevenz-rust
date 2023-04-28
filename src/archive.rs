@@ -1,6 +1,7 @@
 #![allow(unused)]
-use crate::{folder::*, method_options::MethodOptions, FileTime};
+use crate::{folder::*, method_options::MethodOptions};
 use bit_set::BitSet;
+use nt_time::FileTime;
 use std::{any::Any, collections::LinkedList, sync::Arc, time::SystemTime};
 
 pub const SIGNATURE_HEADER_SIZE: u64 = 32;
