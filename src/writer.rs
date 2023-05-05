@@ -114,8 +114,10 @@ impl<W: Write + Seek> SevenZWriter<W> {
 
         if let Ok(meta) = path.metadata() {
             if let Ok(modified) = meta.modified() {
-                entry.last_modified_date = modified.into();
-                entry.has_last_modified_date = entry.last_modified_date.raw() > 0;
+                entry.last_modified_date = modified
+                    .try_into()
+                    .expect("last modified date should be in the range of file time");
+                entry.has_last_modified_date = entry.last_modified_date.as_u64() > 0;
             }
         }
         entry
