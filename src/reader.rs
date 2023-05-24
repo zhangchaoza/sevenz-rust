@@ -52,7 +52,7 @@ struct Crc32VerifyingReader<R: Read> {
     inner: R,
     crc_digest: crc::Digest<'static, u32>,
     expected_value: u64,
-    remaining: i32,
+    remaining: i64,
 }
 
 impl<R: Read> Crc32VerifyingReader<R> {
@@ -61,7 +61,7 @@ impl<R: Read> Crc32VerifyingReader<R> {
             inner,
             crc_digest: CRC32.digest(),
             expected_value,
-            remaining: remaining as i32,
+            remaining: remaining as i64,
         }
     }
 }
@@ -73,7 +73,7 @@ impl<R: Read> Read for Crc32VerifyingReader<R> {
         }
         let size = self.inner.read(buf)?;
         if size > 0 {
-            self.remaining -= size as i32;
+            self.remaining -= size as i64;
             self.crc_digest.update(&buf[..size]);
         }
         if self.remaining <= 0 {
