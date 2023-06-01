@@ -121,6 +121,12 @@ pub struct SevenZMethodConfiguration {
     pub options: Option<MethodOptions>,
 }
 
+impl From<SevenZMethod> for SevenZMethodConfiguration {
+    fn from(value: SevenZMethod) -> Self {
+        Self::new(value)
+    }
+}
+
 impl Clone for SevenZMethodConfiguration {
     fn clone(&self) -> Self {
         Self {
@@ -136,6 +142,11 @@ impl SevenZMethodConfiguration {
             method,
             options: None,
         }
+    }
+
+    pub fn with_options(mut self, options: MethodOptions) -> Self {
+        self.options = Some(options);
+        self
     }
 }
 

@@ -79,6 +79,7 @@ impl<R: Read> Read for Crc32VerifyingReader<R> {
         if self.remaining <= 0 {
             let d = std::mem::replace(&mut self.crc_digest, CRC32.digest()).finalize();
             if d as u64 != self.expected_value {
+                println!("{d}=={}", self.expected_value);
                 return Err(std::io::Error::new(
                     ErrorKind::Other,
                     Error::ChecksumVerificationFailed,

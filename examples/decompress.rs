@@ -1,12 +1,13 @@
-use std::time::Instant;
+use std::{time::Instant, fs::File};
 
 use sevenz_rust::default_entry_extract_fn;
 
 fn main() {
     let instant = Instant::now();
-    sevenz_rust::decompress_file_with_extract_fn(
-        "examples/data/sample.7z",
+    sevenz_rust::decompress_with_extract_fn_and_password(
+        File::open("examples/data/sample.7z").unwrap(),
         "examples/data/sample",
+        "pass".into(),
         |entry, reader, dest| {
             println!("start extract {}", entry.name());
             let r = default_entry_extract_fn(entry, reader, dest);

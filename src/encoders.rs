@@ -1,5 +1,7 @@
 use std::io::Write;
 
+#[cfg(feature = "aes256")]
+use crate::aes256sha256::Aes256Sha256Encoder;
 use crate::{
     archive::{SevenZMethod, SevenZMethodConfiguration},
     lzma::CountingWriter,
@@ -10,18 +12,24 @@ use crate::{
 
 pub enum Encoder<W: Write> {
     LZMA2(LZMA2Writer<W>),
+    #[cfg(feature = "aes256")]
+    AES(Aes256Sha256Encoder<W>),
 }
 
 impl<W: Write> Write for Encoder<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self {
             Encoder::LZMA2(w) => w.write(buf),
+            #[cfg(feature = "aes256")]
+            Encoder::AES(w) => w.write(buf),
         }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
         match self {
             Encoder::LZMA2(w) => w.flush(),
+            #[cfg(feature = "aes256")]
+            Encoder::AES(w) => w.flush(),
         }
     }
 }
@@ -49,6 +57,15 @@ pub fn add_encoder<W: Write>(
             let lz = LZMA2Writer::new(input, options);
             Ok(Encoder::LZMA2(lz))
         }
+        #[cfg(feature = "aes256")]
+        SevenZMethod::ID_AES256SHA256 => {
+            let options = match method_config.options.as_ref() {
+                Some(MethodOptions::Aes(p)) => p,
+                _ => return Err(Error::PasswordRequired),
+            };
+
+            Ok(Encoder::AES(Aes256Sha256Encoder::new(input, options)?))
+        }
         _ => {
             return Err(Error::UnsupportedCompressionMethod(
                 method.name().to_string(),
@@ -72,6 +89,15 @@ pub(crate) fn get_options_as_properties<'a>(
             let prop = (19u32.wrapping_sub(lead) * 2 + second_bit) as u8;
             out[0] = prop;
             &out[0..1]
+        }
+        #[cfg(feature = "aes256")]
+        SevenZMethod::ID_AES256SHA256 => {
+            let options = match options.as_ref() {
+                Some(MethodOptions::Aes(p)) => p,
+                _ => return &[],
+            };
+            options.write_properties(out);
+            &out[..34]
         }
         _ => &[],
     }

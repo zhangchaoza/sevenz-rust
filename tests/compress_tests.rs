@@ -114,3 +114,33 @@ fn compress_folder_with_nested_folder() {
         "file1 with content"
     );
 }
+
+#[cfg(all(feature = "compress", feature = "aes"))]
+#[test]
+fn compress_one_file_with_random_content_encrypted() {
+    use rand::Rng;
+    for _ in 0..10 {
+        let temp_dir = tempdir().unwrap();
+        let source = temp_dir.path().join("file1.txt");
+        let mut rng = rand::thread_rng();
+        let mut content = String::with_capacity(rng.gen_range(1..10240));
+
+        for _ in 0..content.capacity() {
+            let c = rng.gen_range(' '..'~');
+            content.push(c);
+        }
+        std::fs::write(&source, &content).unwrap();
+        let dest = temp_dir.path().join("file1.7z");
+
+        compress_to_path_encrypted(source, &dest, "rust".into()).expect("compress ok");
+
+        let decompress_dest = temp_dir.path().join("decompress");
+        decompress_file_with_password(dest, &decompress_dest, "rust".into())
+            .expect("decompress ok");
+        assert!(decompress_dest.exists());
+        let decompress_file = decompress_dest.join("file1.txt");
+        assert!(decompress_file.exists());
+
+        assert_eq!(std::fs::read_to_string(&decompress_file).unwrap(), content);
+    }
+}

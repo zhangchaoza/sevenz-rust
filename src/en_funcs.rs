@@ -21,6 +21,28 @@ pub fn compress(src: impl AsRef<Path>, dest: impl Write + Seek) -> Result<(), Er
     z.finish().map_err(Error::io)
 }
 
+#[cfg(feature = "aes256")]
+pub fn compress_encypted(
+    src: impl AsRef<Path>,
+    dest: impl Write + Seek,
+    password: Password,
+) -> Result<(), Error> {
+    let mut z = SevenZWriter::new(dest)?;
+    if !password.is_empty() {
+        z.set_content_methods(vec![
+            aes256sha256::AesEncoderOptions::new(password).into(),
+            SevenZMethod::LZMA2.into(),
+        ]);
+    }
+    let parent = if src.as_ref().is_dir() {
+        src.as_ref()
+    } else {
+        src.as_ref().parent().unwrap_or(src.as_ref())
+    };
+    compress_path(src.as_ref(), parent, &mut z)?;
+    z.finish().map_err(Error::io)
+}
+
 /// hepler function to compress `src` path to `dest` path
 pub fn compress_to_path(src: impl AsRef<Path>, dest: impl AsRef<Path>) -> Result<(), Error> {
     if let Some(p) = dest.as_ref().parent() {
@@ -33,6 +55,26 @@ pub fn compress_to_path(src: impl AsRef<Path>, dest: impl AsRef<Path>) -> Result
         src,
         File::create(dest.as_ref())
             .map_err(|e| Error::file_open(e, dest.as_ref().to_string_lossy().to_string()))?,
+    )
+}
+
+#[cfg(feature = "aes256")]
+pub fn compress_to_path_encrypted(
+    src: impl AsRef<Path>,
+    dest: impl AsRef<Path>,
+    password: Password,
+) -> Result<(), Error> {
+    if let Some(p) = dest.as_ref().parent() {
+        if !p.exists() {
+            std::fs::create_dir_all(p)
+                .map_err(|e| Error::io_msg(e, format!("Create dir failed:{:?}", dest.as_ref())))?;
+        }
+    }
+    compress_encypted(
+        src,
+        File::create(dest.as_ref())
+            .map_err(|e| Error::file_open(e, dest.as_ref().to_string_lossy().to_string()))?,
+        password,
     )
 }
 

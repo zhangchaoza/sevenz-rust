@@ -7,14 +7,14 @@ license = "Apache-2.0"
 name = "sevenz-rust"
 readme = "README.md"
 repository = "https://github.com/dyz1990/sevenz-rust"
-version = "0.2.11"
+version = "0.3.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-aes256 = ["aes", "cbc"]
+aes256 = ["aes", "cbc", "rand"]
 bzip2 = ["dep:bzip2"]
 compress = ["lzma-rust/encoder"]
 default = ["compress"]
@@ -26,17 +26,19 @@ byteorder = "1.4"
 bzip2 = {version = "0.4", optional = true}
 cbc = {version = "0.1", optional = true}
 crc = "3.0.0"
+filetime_creation = "0.1"
 lzma-rust = {path = "lzma-rust", default-features = false, version = "0.1.1"}
+nt-time = "0.4.1"
+rand = {version = "0.8", optional = true}
 sha2 = {version = "^0.9"}
 zstd = {version = "0.12.3", optional = true}
-filetime_creation = "0.1"
-nt-time = "0.4.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3.60"
 wasm-bindgen = "0.2"
 
 [dev-dependencies]
+rand = {version = "0.8"}
 tempfile = "3.3.0"
 
 [[example]]

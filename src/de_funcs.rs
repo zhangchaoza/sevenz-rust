@@ -73,7 +73,7 @@ pub fn decompress_with_password<R: Read + Seek>(
 
 #[cfg(all(feature = "aes256", not(target_arch = "wasm32")))]
 pub fn decompress_with_extract_fn_and_password<R: Read + Seek>(
-    mut src_reader: R,
+    src_reader: R,
     dest: impl AsRef<Path>,
     password: Password,
     extract_fn: impl FnMut(&SevenZArchiveEntry, &mut dyn Read, &PathBuf) -> Result<bool, Error>,

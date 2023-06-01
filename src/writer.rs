@@ -97,8 +97,11 @@ impl<W: Write + Seek> SevenZWriter<W> {
     /// The default is LZMA2.
     /// And currently only support LZMA2
     ///
-    pub fn set_content_methods(&mut self, content_methods: Arc<Vec<SevenZMethodConfiguration>>) {
-        self.content_methods = content_methods;
+    pub fn set_content_methods(&mut self, content_methods: Vec<SevenZMethodConfiguration>) {
+        if content_methods.is_empty() {
+            return;
+        }
+        self.content_methods = Arc::new(content_methods);
     }
 
     /// Create an archive entry using the file in `path` and entry_name provided.
@@ -131,17 +134,19 @@ impl<W: Write + Seek> SevenZWriter<W> {
     ) -> Result<&SevenZArchiveEntry> {
         if !entry.is_directory {
             if let Some(mut r) = reader {
-                if entry.content_methods.is_empty() {
-                    entry.content_methods = self.content_methods.clone();
-                }
                 let mut compressed_len = 0;
                 let mut compressed = CompressWrapWriter::new(&mut self.output, &mut compressed_len);
-
+                let content_methods = if entry.content_methods.is_empty() {
+                    &self.content_methods
+                } else {
+                    &entry.content_methods
+                };
                 let mut more_sizes: Vec<Rc<Cell<usize>>> =
-                    Vec::with_capacity(entry.content_methods.len() - 1);
+                    Vec::with_capacity(content_methods.len() - 1);
 
                 let (crc, size) = {
-                    let mut w = Self::create_writer(&mut entry, &mut compressed, &mut more_sizes)?;
+                    let mut w =
+                        Self::create_writer(content_methods, &mut compressed, &mut more_sizes)?;
                     let mut write_len = 0;
                     let mut w = CompressWrapWriter::new(&mut w, &mut write_len);
                     let mut buf = [0u8; 4096];
@@ -197,11 +202,10 @@ impl<W: Write + Seek> SevenZWriter<W> {
     }
 
     fn create_writer<'a, O: Write + 'a>(
-        entry: &mut SevenZArchiveEntry,
+        methods: &[SevenZMethodConfiguration],
         out: O,
         more_sized: &mut Vec<Rc<Cell<usize>>>,
     ) -> Result<Box<dyn Write + 'a>> {
-        let methods = &entry.content_methods;
         let mut encoder: Box<dyn Write> = Box::new(out);
         let mut first = true;
         for mc in methods.iter() {
@@ -352,7 +356,12 @@ impl<W: Write + Seek> SevenZWriter<W> {
     ) -> std::io::Result<()> {
         cache.clear();
         let mut num_coders = 0;
-        for mc in entry.content_methods.iter() {
+        let content_methods = if entry.content_methods.is_empty() {
+            &self.content_methods
+        } else {
+            &entry.content_methods
+        };
+        for mc in content_methods.iter() {
             num_coders += 1;
             self.write_single_codec(mc, cache)?;
         }
@@ -371,7 +380,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         cache: &mut H,
     ) -> std::io::Result<()> {
         let id = mc.method.id();
-        let mut temp = [0u8; 6];
+        let mut temp = [0u8; 256];
         let props = encoders::get_options_as_properties(mc.method, mc.options.as_ref(), &mut temp);
         let mut codec_flags = id.len() as u8;
         if props.len() > 0 {
