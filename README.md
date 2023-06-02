@@ -32,7 +32,7 @@ Supported filters:
 
 ```
 [dependencies]
-sevenz-rust={version="0.2.9"}
+sevenz-rust={version="0.2"}
 ```
 
 Decompress source file "data/sample.7z" to dest path "data/sample"
@@ -45,7 +45,7 @@ Decompress a encrypted 7z file
 Add 'aes256' feature
 ```
 [dependencies]
-sevenz-rust={version="0.1.5", features=["aes256"]}
+sevenz-rust={version="0.2", features=["aes256"]}
 ```
 
 ```rust
@@ -64,3 +64,16 @@ Use the helper function to create a 7z file with source path.
 ```rust
 sevenz_rust::compress_to_path("examples/data/sample", "examples/data/sample.7z").expect("compress ok");
 ```
+
+## With AES encryption
+require version>=0.3.0
+```
+[dependencies]
+sevenz-rust={version="0.3", features=["compress","aes256"]}
+```
+
+Use the helper function to create a 7z file with source path and password.
+```rust
+sevenz_rust::compress_to_path_encrypted("examples/data/sample", "examples/data/sample.7z", "password".into()).expect("compress ok");
+```
+
