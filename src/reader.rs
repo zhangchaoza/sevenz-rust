@@ -1030,6 +1030,11 @@ impl<R: Read + Seek> SevenZReader<R> {
         })
     }
 
+    #[inline]
+    pub fn archive(&self) -> &Archive {
+        &self.archive
+    }
+
     fn build_decode_stack<'r>(
         &self,
         source: &'r mut R,

@@ -1,15 +1,21 @@
+mod pack_info;
+mod seq_reader;
+mod unpack_info;
+
 use crate::{archive::*, encoders, lzma::*, reader::CRC32, Error, SevenZArchiveEntry};
 use bit_set::BitSet;
 use byteorder::*;
 use std::{
     cell::Cell,
-    collections::HashMap,
     fs::File,
     io::{Read, Seek, Write},
     path::Path,
     rc::Rc,
     sync::Arc,
 };
+
+pub use self::seq_reader::{SeqReader, SourceReader};
+use self::{pack_info::PackInfo, unpack_info::UnpackInfo};
 
 macro_rules! write_times {
     //write_i64
@@ -62,8 +68,8 @@ pub struct SevenZWriter<W: Write> {
     output: W,
     files: Vec<SevenZArchiveEntry>,
     content_methods: Arc<Vec<SevenZMethodConfiguration>>,
-    additional_sizes: HashMap<String, Vec<usize>>,
-    num_non_empty_streams: usize,
+    pack_info: PackInfo,
+    unpack_info: UnpackInfo,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -88,8 +94,8 @@ impl<W: Write + Seek> SevenZWriter<W> {
             output: writer,
             files: Default::default(),
             content_methods: Arc::new(vec![SevenZMethodConfiguration::new(SevenZMethod::LZMA2)]),
-            additional_sizes: Default::default(),
-            num_non_empty_streams: 0,
+            pack_info: Default::default(),
+            unpack_info: Default::default(),
         })
     }
 
@@ -97,14 +103,20 @@ impl<W: Write + Seek> SevenZWriter<W> {
     /// The default is LZMA2.
     /// And currently only support LZMA2
     ///
-    pub fn set_content_methods(&mut self, content_methods: Vec<SevenZMethodConfiguration>) {
+    pub fn set_content_methods(
+        &mut self,
+        content_methods: Vec<SevenZMethodConfiguration>,
+    ) -> &mut Self {
         if content_methods.is_empty() {
-            return;
+            return self;
         }
         self.content_methods = Arc::new(content_methods);
+        self
     }
 
     /// Create an archive entry using the file in `path` and entry_name provided.
+    /// #deprecated use SevenZArchiveEntry::from_path instead
+    #[deprecated]
     pub fn create_archive_entry(path: impl AsRef<Path>, entry_name: String) -> SevenZArchiveEntry {
         let path = path.as_ref();
 
@@ -175,20 +187,22 @@ impl<W: Write + Seek> SevenZWriter<W> {
 
                     (w.crc_value(), write_len)
                 };
-                let compressed_crc = compressed.crc_value() as u64;
+                let compressed_crc = compressed.crc_value();
                 entry.has_stream = true;
                 entry.size = size as u64;
                 entry.crc = crc as u64;
                 entry.has_crc = true;
-                entry.compressed_crc = compressed_crc;
+                entry.compressed_crc = compressed_crc as u64;
                 entry.compressed_size = compressed_len as u64;
-                if !more_sizes.is_empty() {
-                    self.additional_sizes.insert(
-                        entry.name.clone(),
-                        more_sizes.iter().map(|c| c.get()).collect(),
-                    );
-                }
-                self.num_non_empty_streams += 1;
+                self.pack_info
+                    .add_stream(compressed_len as u64, compressed_crc);
+
+                let mut sizes = Vec::with_capacity(more_sizes.len() + 1);
+                sizes.extend(more_sizes.iter().map(|s| s.get() as u64));
+                sizes.push(size as u64);
+
+                self.unpack_info.add(content_methods.clone(), sizes, crc);
+
                 self.files.push(entry);
                 return Ok(self.files.last().unwrap());
             }
@@ -199,6 +213,106 @@ impl<W: Write + Seek> SevenZWriter<W> {
         entry.has_crc = false;
         self.files.push(entry);
         Ok(self.files.last().unwrap())
+    }
+
+    /// [Solid compression](https://en.wikipedia.org/wiki/Solid_compression)
+    /// pack [entries] into one pack
+    /// # Panics
+    /// Panics if `entries`'s length not equals to `reader.reader_len()`
+    pub fn push_archive_entries<R: Read>(
+        &mut self,
+        mut entries: Vec<SevenZArchiveEntry>,
+        reader: SeqReader<SourceReader<R>>,
+    ) -> Result<&mut Self> {
+        let mut r = reader;
+        assert_eq!(r.reader_len(), entries.len());
+        let mut compressed_len = 0;
+        let mut compressed = CompressWrapWriter::new(&mut self.output, &mut compressed_len);
+        let content_methods = &self.content_methods;
+        let mut more_sizes: Vec<Rc<Cell<usize>>> = Vec::with_capacity(content_methods.len() - 1);
+
+        let (crc, size) = {
+            let mut w = Self::create_writer(content_methods, &mut compressed, &mut more_sizes)?;
+            let mut write_len = 0;
+            let mut w = CompressWrapWriter::new(&mut w, &mut write_len);
+            let mut buf = [0u8; 4096];
+            fn entries_names(entries: &[SevenZArchiveEntry]) -> String {
+                let mut names = String::with_capacity(512);
+                for ele in entries.iter() {
+                    names.push_str(&ele.name);
+                    names.push(';');
+                    if names.len() > 512 {
+                        break;
+                    }
+                }
+                names
+            }
+            loop {
+                match r.read(&mut buf) {
+                    Ok(n) => {
+                        if n == 0 {
+                            break;
+                        }
+                        w.write_all(&buf[..n]).map_err(|e| {
+                            Error::io_msg(e, format!("Encode entries:{}", entries_names(&entries)))
+                        })?;
+                    }
+                    Err(e) => {
+                        return Err(Error::io_msg(
+                            e,
+                            format!("Encode entries:{}", entries_names(&entries)),
+                        ));
+                    }
+                }
+            }
+            w.flush().map_err(|e| {
+                let mut names = String::with_capacity(512);
+                for ele in entries.iter() {
+                    names.push_str(&ele.name);
+                    names.push(';');
+                    if names.len() > 512 {
+                        break;
+                    }
+                }
+                Error::io_msg(e, format!("Encode entry:{}", names))
+            })?;
+            w.write(&[]).map_err(|e| {
+                Error::io_msg(e, format!("Encode entry:{}", entries_names(&entries)))
+            })?;
+
+            (w.crc_value(), write_len)
+        };
+        let compressed_crc = compressed.crc_value();
+        let mut sub_stream_crcs = Vec::with_capacity(entries.len());
+        let mut sub_stream_sizes = Vec::with_capacity(entries.len());
+        for i in 0..entries.len() {
+            let entry = &mut entries[i];
+            let ri = &r[i];
+            entry.crc = ri.crc_value() as u64;
+            entry.size = ri.read_count() as u64;
+            sub_stream_crcs.push(entry.crc as u32);
+            sub_stream_sizes.push(entry.size as u64);
+            entry.has_crc = true;
+        }
+
+        self.pack_info
+            .add_stream(compressed_len as u64, compressed_crc);
+
+        let mut sizes = Vec::with_capacity(more_sizes.len() + 1);
+        sizes.extend(more_sizes.iter().map(|s| s.get() as u64));
+        sizes.push(size as u64);
+
+        self.unpack_info.add_multiple(
+            content_methods.clone(),
+            sizes,
+            crc,
+            entries.len() as u64,
+            sub_stream_sizes,
+            sub_stream_crcs,
+        );
+
+        self.files.extend(entries);
+        return Ok(self);
     }
 
     fn create_writer<'a, O: Write + 'a>(
@@ -263,142 +377,22 @@ impl<W: Write + Seek> SevenZWriter<W> {
     }
 
     fn write_streams_info<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-        if self.num_non_empty_streams > 0 {
-            self.write_pack_info(header)?;
-            self.write_unpack_info(header)?;
+        if self.pack_info.len() > 0 {
+            self.pack_info.write_to(header)?;
+            self.unpack_info.write_to(header)?;
         }
         self.write_sub_streams_info(header)?;
         header.write_u8(K_END)?;
         Ok(())
     }
 
-    fn write_pack_info<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-        header.write_u8(K_PACK_INFO)?;
-        write_u64(header, 0)?;
-        write_u64(header, self.num_non_empty_streams as u64)?;
-        header.write_u8(K_SIZE)?;
-        for entry in self.files.iter() {
-            if entry.has_stream {
-                write_u64(header, entry.compressed_size)?;
-            }
-        }
-        header.write_u8(K_CRC)?;
-        let all_crc_defined = self.files.iter().all(|f| f.compressed_crc != 0);
-        if all_crc_defined {
-            header.write_u8(1)?; // all defined
-            for entry in self.files.iter() {
-                if entry.has_stream {
-                    header.write_u32::<LittleEndian>(entry.compressed_crc as u32)?;
-                }
-            }
-        } else {
-            header.write_u8(0)?; // all defined
-            let mut crc_define_bits = BitSet::with_capacity(self.num_non_empty_streams);
-
-            let mut i = 0;
-            for entry in self.files.iter().filter(|f| f.has_stream) {
-                if entry.compressed_crc != 0 {
-                    crc_define_bits.insert(i);
-                }
-                i += 1;
-            }
-            let mut temp = Vec::with_capacity(self.num_non_empty_streams);
-            write_bit_set(&mut temp, &crc_define_bits)?;
-            header.write_all(&temp)?;
-            for entry in self.files.iter() {
-                if entry.has_stream && entry.compressed_crc != 0 {
-                    header.write_u32::<LittleEndian>(entry.compressed_crc as u32)?;
-                }
-            }
-        }
-
-        header.write_u8(K_END)?;
-        Ok(())
-    }
-    fn write_unpack_info<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
-        header.write_u8(K_UNPACK_INFO)?;
-        header.write_u8(K_FOLDER)?;
-        write_u64(header, self.num_non_empty_streams as u64)?;
-        header.write_u8(0)?;
-        let mut cache = Vec::with_capacity(32);
-        for entry in self.files.iter() {
-            if entry.has_stream {
-                self.write_folder(header, entry, &mut cache)?;
-            }
-        }
-        header.write_u8(K_CODERS_UNPACK_SIZE)?;
-        for entry in self.files.iter() {
-            if entry.has_stream {
-                if let Some(sized) = self.additional_sizes.get(entry.name()) {
-                    for s in sized {
-                        write_u64(header, *s as u64)?;
-                    }
-                }
-                write_u64(header, entry.size)?;
-            }
-        }
-        header.write_u8(K_CRC)?;
-        header.write_u8(1)?; //all defined
-        for entry in self.files.iter() {
-            if entry.has_stream {
-                header.write_u32::<LittleEndian>(entry.crc as u32)?;
-            }
-        }
-        header.write_u8(K_END)?;
-        Ok(())
-    }
-
-    fn write_folder<H: Write>(
-        &self,
-        header: &mut H,
-        entry: &SevenZArchiveEntry,
-        cache: &mut Vec<u8>,
-    ) -> std::io::Result<()> {
-        cache.clear();
-        let mut num_coders = 0;
-        let content_methods = if entry.content_methods.is_empty() {
-            &self.content_methods
-        } else {
-            &entry.content_methods
-        };
-        for mc in content_methods.iter() {
-            num_coders += 1;
-            self.write_single_codec(mc, cache)?;
-        }
-        write_u64(header, num_coders as u64)?;
-        header.write(cache)?;
-        for i in 0..num_coders - 1 {
-            write_u64(header, i as u64 + 1)?;
-            write_u64(header, i as u64)?;
-        }
-        Ok(())
-    }
-
-    fn write_single_codec<H: Write>(
-        &self,
-        mc: &SevenZMethodConfiguration,
-        cache: &mut H,
-    ) -> std::io::Result<()> {
-        let id = mc.method.id();
-        let mut temp = [0u8; 256];
-        let props = encoders::get_options_as_properties(mc.method, mc.options.as_ref(), &mut temp);
-        let mut codec_flags = id.len() as u8;
-        if props.len() > 0 {
-            codec_flags |= 0x20;
-        }
-        cache.write_u8(codec_flags)?;
-        cache.write(id)?;
-        if props.len() > 0 {
-            cache.write_u8(props.len() as u8)?;
-            cache.write(props)?;
-        }
-        Ok(())
-    }
     fn write_sub_streams_info<H: Write>(&self, header: &mut H) -> std::io::Result<()> {
         header.write_u8(K_SUB_STREAMS_INFO)?;
+        self.unpack_info.write_substreams(header)?;
         header.write_u8(K_END)?;
         Ok(())
     }
+
     fn write_files_info<H: Write>(&self, header: &mut H) -> std::io::Result<()> {
         header.write_u8(K_FILES_INFO)?;
         write_u64(header, self.files.len() as u64)?;
@@ -527,7 +521,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
     );
 }
 
-fn write_u64<W: Write>(header: &mut W, mut value: u64) -> std::io::Result<()> {
+pub(crate) fn write_u64<W: Write>(header: &mut W, mut value: u64) -> std::io::Result<()> {
     let mut first = 0;
     let mut mask = 0x80;
     let mut i = 0;

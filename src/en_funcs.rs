@@ -2,9 +2,9 @@
 //!
 
 use std::{
-    fs::File,
+    fs::{File, FileType},
     io::{Seek, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use crate::*;
@@ -89,9 +89,10 @@ fn compress_path<W: Write + Seek, P: AsRef<Path>>(
         .map_err(|e| Error::other(e.to_string()))?
         .to_string_lossy()
         .to_string();
-    let entry = SevenZWriter::<W>::create_archive_entry(src.as_ref(), entry_name);
+    let entry = SevenZArchiveEntry::from_path(src.as_ref(), entry_name);
     let path = src.as_ref();
     if path.is_dir() {
+        // z.push_archive_entry::<&[u8]>(entry, None)?;
         for dir in path
             .read_dir()
             .map_err(|e| Error::io_msg(e, "error read dir"))?
@@ -112,4 +113,71 @@ fn compress_path<W: Write + Seek, P: AsRef<Path>>(
         )?;
     }
     Ok(())
+}
+
+impl<W: Write + Seek> SevenZWriter<W> {
+    /// [Solid compression](https://en.wikipedia.org/wiki/Solid_compression)
+    /// compress all files in [path] into one block
+    ///
+    #[inline]
+    pub fn push_source_path(
+        &mut self,
+        path: impl AsRef<Path>,
+        filter: impl Fn(&Path) -> bool,
+    ) -> Result<&mut Self, crate::Error> {
+        let (entries, reader) = collect_entries_and_reader(&path, filter).map_err(|e| {
+            crate::Error::io_msg(
+                e,
+                format!("Failed to collect entries from path:{:?}", path.as_ref()),
+            )
+        })?;
+        self.push_archive_entries(entries, reader)
+    }
+}
+
+fn collect_file_paths(
+    src: impl AsRef<Path>,
+    paths: &mut Vec<PathBuf>,
+    filter: &dyn Fn(&Path) -> bool,
+) -> std::io::Result<()> {
+    let path = src.as_ref();
+    if !filter(path) {
+        return Ok(());
+    }
+    if path.is_dir() {
+        for dir in path.read_dir()? {
+            let dir = dir?;
+            let ftype = dir.file_type()?;
+            if ftype.is_file() || ftype.is_dir() {
+                collect_file_paths(dir.path(), paths, filter)?;
+            }
+        }
+    } else {
+        paths.push(path.to_path_buf())
+    }
+    Ok(())
+}
+
+pub fn collect_entries_and_reader(
+    src: impl AsRef<Path>,
+    filter: impl Fn(&Path) -> bool,
+) -> std::io::Result<(Vec<SevenZArchiveEntry>, SeqReader<SourceReader<File>>)> {
+    let mut entries = Vec::new();
+    let mut paths = Vec::new();
+    collect_file_paths(&src, &mut paths, &filter)?;
+    for ele in paths.iter() {
+        let name = ele
+            .strip_prefix(&src)
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+
+        entries.push(SevenZArchiveEntry::from_path(ele, name))
+    }
+    let files: Vec<SourceReader<_>> = paths
+        .iter()
+        .map(|p| File::open(p).unwrap().into())
+        .collect();
+
+    Ok((entries, SeqReader::new(files)))
 }

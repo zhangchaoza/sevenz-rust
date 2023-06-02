@@ -2,6 +2,8 @@
 extern crate wasm_bindgen;
 #[cfg(feature = "aes256")]
 mod aes256sha256;
+#[cfg(feature = "aes256")]
+pub use aes256sha256::*;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
 extern crate filetime_creation as ft;
@@ -34,4 +36,4 @@ pub use nt_time;
 pub use password::Password;
 pub use reader::SevenZReader;
 #[cfg(feature = "compress")]
-pub use writer::SevenZWriter;
+pub use writer::*;

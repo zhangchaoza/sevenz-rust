@@ -33,7 +33,7 @@ impl HC4 {
             depth_limit: if depth_limit > 0 {
                 depth_limit as i32
             } else {
-                4 + nice_len as i32/ 4
+                4 + nice_len as i32 / 4
             },
             cyclic_size: dict_size as i32 + 1,
             cyclic_pos: -1,

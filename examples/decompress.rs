@@ -1,4 +1,4 @@
-use std::{time::Instant, fs::File};
+use std::{fs::File, time::Instant};
 
 use sevenz_rust::default_entry_extract_fn;
 

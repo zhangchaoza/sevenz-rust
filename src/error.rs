@@ -20,6 +20,12 @@ pub enum Error {
     PasswordRequired,
 }
 
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Self::io(value)
+    }
+}
+
 impl Error {
     #[inline]
     pub fn other<S: Into<Cow<'static, str>>>(s: S) -> Self {

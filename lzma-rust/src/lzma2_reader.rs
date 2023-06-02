@@ -96,7 +96,10 @@ impl<R: Read> LZMA2Reader<R> {
             }
             unsafe { &mut *self.rc.as_ptr() }.prepare(&mut self.inner, compressed_size)?;
         } else if control > 0x02 {
-            return Err(std::io::Error::new(ErrorKind::InvalidInput, "Corrupted input data (LZMA2:2)"));
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "Corrupted input data (LZMA2:2)",
+            ));
         } else {
             self.is_lzma_chunk = false;
             self.uncompressed_size = (self.inner.read_u16::<BigEndian>()? + 1) as _;
@@ -117,7 +120,10 @@ impl<R: Read> LZMA2Reader<R> {
         let lp = props / 9;
         let lc = props - lp * 9;
         if lc + lp > 4 {
-            return Err(std::io::Error::new(ErrorKind::InvalidInput, "Corrupted input data (LZMA2:4)"));
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "Corrupted input data (LZMA2:4)",
+            ));
         }
         self.lzma = Some(LZMADecoder::new(
             self.lz, self.rc, lc as _, lp as _, pb as _,

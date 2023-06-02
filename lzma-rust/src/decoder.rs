@@ -123,8 +123,7 @@ impl<R: Read> LZMADecoder<R> {
         self.reps[2] = self.reps[1];
         self.reps[1] = self.reps[0];
 
-        let len =
-            unsafe { &mut *self.match_len_decoder.as_ptr() }.decode(pos_state as _, self)?;
+        let len = unsafe { &mut *self.match_len_decoder.as_ptr() }.decode(pos_state as _, self)?;
         let rc = unsafe { &mut *self.rc.as_ptr() };
         let dist_slot = rc.decode_bit_tree(&mut self.dist_slots[coder_get_dict_size(len as _)])?;
 

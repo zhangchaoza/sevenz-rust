@@ -51,8 +51,7 @@ pub fn add_decoder<I: Read>(
     input: I,
     uncompressed_len: usize,
     coder: &Coder,
-    #[allow(unused)]
-    password: &[u8],
+    #[allow(unused)] password: &[u8],
     max_mem_limit_kb: usize,
 ) -> Result<Decoder<I>, Error> {
     let method = SevenZMethod::by_id(coder.decompression_method_id());

@@ -1,5 +1,4 @@
-use std::{cell::Cell, rc::Rc, io::Write};
-
+use std::{cell::Cell, io::Write, rc::Rc};
 
 pub struct CountingWriter<W> {
     inner: W,

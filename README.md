@@ -77,3 +77,22 @@ Use the helper function to create a 7z file with source path and password.
 sevenz_rust::compress_to_path_encrypted("examples/data/sample", "examples/data/sample.7z", "password".into()).expect("compress ok");
 ```
 
+## Advance
+
+```
+[dependencies]
+sevenz-rust={version="0.3", features=["compress","aes256"]}
+```
+
+### Solid coompression
+
+```
+use sevenz_rust::*;
+
+let mut sz = SevenZWriter::create("dest.7z").expect("create writer ok");
+
+sz.push_source_path("path/to/compress", |_| true).expect("pack ok");
+
+sz.finish().expect("compress ok");
+
+```

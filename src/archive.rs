@@ -113,6 +113,39 @@ impl SevenZArchiveEntry {
     pub fn is_anti_item(&self) -> bool {
         self.is_anti_item
     }
+
+    pub fn from_path(path: impl AsRef<std::path::Path>, entry_name: String) -> SevenZArchiveEntry {
+        let path = path.as_ref();
+
+        let mut entry = SevenZArchiveEntry {
+            name: entry_name,
+            has_stream: path.is_file(),
+            is_directory: path.is_dir(),
+            ..Default::default()
+        };
+
+        if let Ok(meta) = path.metadata() {
+            if let Ok(modified) = meta.modified() {
+                if let Ok(date) = modified.try_into() {
+                    entry.last_modified_date = date;
+                    entry.has_last_modified_date = entry.last_modified_date.as_u64() > 0;
+                }
+            }
+            if let Ok(date) = meta.created() {
+                if let Ok(date) = date.try_into() {
+                    entry.creation_date = date;
+                    entry.has_creation_date = entry.creation_date.as_u64() > 0;
+                }
+            }
+            if let Ok(date) = meta.accessed() {
+                if let Ok(date) = date.try_into() {
+                    entry.access_date = date;
+                    entry.has_access_date = entry.access_date.as_u64() > 0;
+                }
+            }
+        }
+        entry
+    }
 }
 
 #[derive(Debug, Default)]

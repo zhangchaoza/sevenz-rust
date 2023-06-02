@@ -28,19 +28,7 @@ pub struct LZMA2Options {
 
 impl Default for LZMA2Options {
     fn default() -> Self {
-        let mut opt = Self {
-            dict_size: Default::default(),
-            lc: Default::default(),
-            lp: Default::default(),
-            pb: Default::default(),
-            mode: EncodeMode::Normal,
-            nice_len: Default::default(),
-            mf: Default::default(),
-            depth_limit: Default::default(),
-            preset_dict: Default::default(),
-        };
-        opt.set_preset(6);
-        opt
+        Self::with_preset(6)
     }
 }
 impl LZMA2Options {
@@ -86,6 +74,25 @@ impl LZMA2Options {
         }
     }
 
+    /// preset: [0..9]
+    #[inline]
+    pub fn with_preset(preset: u32) -> Self {
+        let mut opt = Self {
+            dict_size: Default::default(),
+            lc: Default::default(),
+            lp: Default::default(),
+            pb: Default::default(),
+            mode: EncodeMode::Normal,
+            nice_len: Default::default(),
+            mf: Default::default(),
+            depth_limit: Default::default(),
+            preset_dict: Default::default(),
+        };
+        opt.set_preset(preset);
+        opt
+    }
+
+    /// preset: [0..9]
     pub fn set_preset(&mut self, preset: u32) {
         if preset > 9 {
             return;

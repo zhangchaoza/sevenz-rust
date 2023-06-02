@@ -1,5 +1,8 @@
+use lzma_rust::LZMA2Options;
+
 #[cfg(feature = "aes256")]
-use crate::{aes256sha256::AesEncoderOptions, Password, SevenZMethod, SevenZMethodConfiguration};
+use crate::{aes256sha256::AesEncoderOptions, Password};
+use crate::{SevenZMethod, SevenZMethodConfiguration};
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
@@ -21,6 +24,12 @@ impl From<AesEncoderOptions> for MethodOptions {
 impl From<AesEncoderOptions> for SevenZMethodConfiguration {
     fn from(value: AesEncoderOptions) -> Self {
         Self::new(SevenZMethod::AES256SHA256).with_options(MethodOptions::Aes(value))
+    }
+}
+
+impl From<LZMA2Options> for SevenZMethodConfiguration {
+    fn from(value: LZMA2Options) -> Self {
+        Self::new(SevenZMethod::LZMA2).with_options(MethodOptions::LZMA2(value))
     }
 }
 
