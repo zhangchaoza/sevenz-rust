@@ -43,6 +43,11 @@ tempfile = "3.3.0"
 
 [[example]]
 name = "compress"
+required-features = ["compress", "aes256"]
+
+[[example]]
+name = "decompress"
+required-features = ["compress", "aes256"]
 
 [[example]]
 name = "advance"
