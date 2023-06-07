@@ -117,6 +117,9 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.4.1 - 2023-06-07
+- Fixed unable to build without default features
+
 ### 0.4.0 - 2023-06-03 - Solid compression
 
 ### 0.3.0 - 2023-06-02 - Encrypted compression
