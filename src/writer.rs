@@ -337,7 +337,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
     }
 
     /// Finishes the compression.
-    pub fn finish(mut self) -> std::io::Result<()> {
+    pub fn finish(mut self) -> std::io::Result<W> {
         let header_pos = self.output.stream_position()?;
         let mut header: Vec<u8> = Vec::with_capacity(64 * 1024);
         self.write_header(&mut header)?;
@@ -364,7 +364,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
 
         self.output.seek(std::io::SeekFrom::Start(0))?;
         self.output.write(&hh)?;
-        Ok(())
+        Ok(self.output)
     }
 
     fn write_header<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {

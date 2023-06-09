@@ -10,7 +10,7 @@ use std::{
 use crate::*;
 
 /// hepler function to compress `src` path to `dest` writer
-pub fn compress(src: impl AsRef<Path>, dest: impl Write + Seek) -> Result<(), Error> {
+pub fn compress<W: Write + Seek>(src: impl AsRef<Path>, dest: W) -> Result<W, Error> {
     let mut z = SevenZWriter::new(dest)?;
     let parent = if src.as_ref().is_dir() {
         src.as_ref()
@@ -22,11 +22,11 @@ pub fn compress(src: impl AsRef<Path>, dest: impl Write + Seek) -> Result<(), Er
 }
 
 #[cfg(feature = "aes256")]
-pub fn compress_encypted(
+pub fn compress_encypted<W: Write + Seek>(
     src: impl AsRef<Path>,
-    dest: impl Write + Seek,
+    dest: W,
     password: Password,
-) -> Result<(), Error> {
+) -> Result<W, Error> {
     let mut z = SevenZWriter::new(dest)?;
     if !password.is_empty() {
         z.set_content_methods(vec![
@@ -55,7 +55,8 @@ pub fn compress_to_path(src: impl AsRef<Path>, dest: impl AsRef<Path>) -> Result
         src,
         File::create(dest.as_ref())
             .map_err(|e| Error::file_open(e, dest.as_ref().to_string_lossy().to_string()))?,
-    )
+    )?;
+    Ok(())
 }
 
 #[cfg(feature = "aes256")]
@@ -75,7 +76,8 @@ pub fn compress_to_path_encrypted(
         File::create(dest.as_ref())
             .map_err(|e| Error::file_open(e, dest.as_ref().to_string_lossy().to_string()))?,
         password,
-    )
+    )?;
+    Ok(())
 }
 
 fn compress_path<W: Write + Seek, P: AsRef<Path>>(
