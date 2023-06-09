@@ -4,127 +4,92 @@ use super::*;
 
 use std::{
     io::{Read, Result},
-    ops::{Deref, DerefMut},
-    ptr::NonNull,
+    ops::{Deref, DerefMut}
 };
 
-pub struct LZMADecoder<R> {
+pub struct LZMADecoder {
     coder: LZMACoder,
-    lz: NonNull<LZDecoder>,
-    rc: NonNull<RangeDecoder<R>>,
-    literal_decoder: NonNull<LiteralDecoder>,
-    match_len_decoder: NonNull<LengthCoder>,
-    rep_len_decoder: NonNull<LengthCoder>,
+    literal_decoder: LiteralDecoder,
+    match_len_decoder: LengthCoder,
+    rep_len_decoder: LengthCoder,
 }
-impl<R> Drop for LZMADecoder<R> {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(self.literal_decoder.as_ptr()));
-            drop(Box::from_raw(self.match_len_decoder.as_ptr()));
-            drop(Box::from_raw(self.rep_len_decoder.as_ptr()));
-        }
-    }
-}
-impl<R> Deref for LZMADecoder<R> {
+
+impl Deref for LZMADecoder {
     type Target = LZMACoder;
 
     fn deref(&self) -> &Self::Target {
         &self.coder
     }
 }
-impl<R> DerefMut for LZMADecoder<R> {
+impl DerefMut for LZMADecoder {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.coder
     }
 }
 
-impl<R: Read> LZMADecoder<R> {
-    pub fn new(
-        lz: NonNull<LZDecoder>,
-        rc: NonNull<RangeDecoder<R>>,
-        lc: u32,
-        lp: u32,
-        pb: u32,
-    ) -> Self {
-        let mut literal_decoder = Box::new(LiteralDecoder::new(lc, lp));
+impl LZMADecoder {
+    pub fn new(lc: u32, lp: u32, pb: u32) -> Self {
+        let mut literal_decoder = LiteralDecoder::new(lc, lp);
         literal_decoder.reset();
-        let literal_decoder = unsafe { NonNull::new_unchecked(Box::into_raw(literal_decoder)) };
-        let match_len_decoder = unsafe {
-            let mut l = Box::new(LengthCoder::new());
+        let match_len_decoder =  {
+            let mut l = LengthCoder::new();
             l.reset();
-            let l = Box::into_raw(l);
-            NonNull::new_unchecked(l)
+            l
         };
-        let rep_len_decoder = unsafe {
-            let mut l = Box::new(LengthCoder::new());
+        let rep_len_decoder =  {
+            let mut l = LengthCoder::new();
             l.reset();
-            let l = Box::into_raw(l);
-            NonNull::new_unchecked(l)
+            l
         };
         Self {
             coder: LZMACoder::new(pb as _),
-            lz,
-            rc,
             literal_decoder,
             match_len_decoder,
             rep_len_decoder,
         }
     }
 
-    pub fn lz(&self) -> &mut LZDecoder {
-        unsafe { &mut *self.lz.as_ptr() }
-    }
-
-    pub fn rc(&self) -> &mut RangeDecoder<R> {
-        unsafe { &mut *self.rc.as_ptr() }
-    }
-
     pub fn reset(&mut self) {
         self.coder.reset();
-        unsafe {
-            self.literal_decoder.as_mut().reset();
-            self.match_len_decoder.as_mut().reset();
-            self.rep_len_decoder.as_mut().reset();
-        }
+        self.literal_decoder.reset();
+        self.match_len_decoder.reset();
+        self.rep_len_decoder.reset();
     }
 
     pub fn end_marker_detected(&self) -> bool {
         self.reps[0] == -1
     }
 
-    pub fn decode(&mut self) -> Result<()> {
-        self.lz().repeat_pending()?;
-        let rc = unsafe { &mut *self.rc.as_ptr() };
-        let lit_de = unsafe { &mut *self.literal_decoder.as_ptr() };
-        while self.lz().has_space() {
-            let pos_state = self.lz().get_pos() as u32 & self.pos_mask;
+    pub fn decode<R: Read>(&mut self, lz: &mut LZDecoder, rc: &mut RangeDecoder<R>) -> Result<()> {
+        lz.repeat_pending()?;
+        while lz.has_space() {
+            let pos_state = lz.get_pos() as u32 & self.pos_mask;
             let i = self.state.get() as usize;
             let probs = &mut self.is_match[i];
             let bit = rc.decode_bit(probs, pos_state as _)?;
             if bit == 0 {
-                lit_de.decode(self)?;
+                self.literal_decoder.decode(&mut self.coder, lz, rc)?;
             } else {
                 let index = self.state.get() as _;
                 let len = if rc.decode_bit(&mut self.is_rep, index)? == 0 {
-                    self.decode_match(pos_state)?
+                    self.decode_match(pos_state, rc)?
                 } else {
-                    self.decode_rep_match(pos_state)?
+                    self.decode_rep_match(pos_state, rc)?
                 };
-                self.lz().repeat(self.reps[0] as _, len as _)?;
+                lz.repeat(self.reps[0] as _, len as _)?;
             }
         }
         rc.normalize()?;
         Ok(())
     }
 
-    fn decode_match(&mut self, pos_state: u32) -> Result<u32> {
+    fn decode_match<R: Read>(&mut self, pos_state: u32, rc: &mut RangeDecoder<R>) -> Result<u32> {
         self.state.update_match();
         self.reps[3] = self.reps[2];
         self.reps[2] = self.reps[1];
         self.reps[1] = self.reps[0];
 
-        let len = unsafe { &mut *self.match_len_decoder.as_ptr() }.decode(pos_state as _, self)?;
-        let rc = unsafe { &mut *self.rc.as_ptr() };
+        let len = self.match_len_decoder.decode(pos_state as _, rc)?;
         let dist_slot = rc.decode_bit_tree(&mut self.dist_slots[coder_get_dict_size(len as _)])?;
 
         if dist_slot < DIST_MODEL_START as i32 {
@@ -145,8 +110,11 @@ impl<R: Read> LZMADecoder<R> {
         Ok(len as _)
     }
 
-    fn decode_rep_match(&mut self, pos_state: u32) -> Result<u32> {
-        let rc = unsafe { &mut *self.rc.as_ptr() };
+    fn decode_rep_match<R: Read>(
+        &mut self,
+        pos_state: u32,
+        rc: &mut RangeDecoder<R>,
+    ) -> Result<u32> {
         let index = self.state.get() as _;
         if rc.decode_bit(&mut self.is_rep0, index)? == 0 {
             let index: usize = self.state.get() as usize;
@@ -173,8 +141,8 @@ impl<R: Read> LZMADecoder<R> {
         }
 
         self.state.update_long_rep();
-        unsafe { &mut *self.rep_len_decoder.as_ptr() }
-            .decode(pos_state as _, self)
+        self.rep_len_decoder
+            .decode(pos_state as _, rc)
             .map(|i| i as u32)
     }
 }
@@ -200,12 +168,17 @@ impl LiteralDecoder {
         }
     }
 
-    fn decode<R: Read>(&mut self, decoder: &mut LZMADecoder<R>) -> Result<()> {
+    fn decode<R: Read>(
+        &mut self,
+        coder: &mut LZMACoder,
+        lz: &mut LZDecoder,
+        rc: &mut RangeDecoder<R>,
+    ) -> Result<()> {
         let i = self
             .coder
-            .get_sub_coder_index(decoder.lz().get_byte(0) as _, decoder.lz().get_pos() as _);
+            .get_sub_coder_index(lz.get_byte(0) as _, lz.get_pos() as _);
         let d = &mut self.sub_decoders[i as usize];
-        d.decode(decoder)
+        d.decode(coder, lz, rc)
     }
 }
 
@@ -220,30 +193,32 @@ impl LiteralSubdecoder {
             coder: LiteralSubcoder::new(),
         }
     }
-    pub fn decode<R: Read>(&mut self, decoder: &mut LZMADecoder<R>) -> Result<()> {
+    pub fn decode<R: Read>(
+        &mut self,
+        coder: &mut LZMACoder,
+        lz: &mut LZDecoder,
+        rc: &mut RangeDecoder<R>,
+    ) -> Result<()> {
         let mut symbol: u32 = 1;
-        let liter = decoder.coder.state.is_literal();
+        let liter = coder.state.is_literal();
         if liter {
             loop {
-                let b = decoder
-                    .rc()
-                    .decode_bit(&mut self.coder.probs, symbol as usize)?
-                    as u32;
+                let b = rc.decode_bit(&mut self.coder.probs, symbol as usize)? as u32;
                 symbol = (symbol << 1) | b;
                 if symbol >= 0x100 {
                     break;
                 }
             }
         } else {
-            let r = decoder.reps[0];
-            let mut match_byte = decoder.lz().get_byte(r as usize) as u32;
+            let r = coder.reps[0];
+            let mut match_byte = lz.get_byte(r as usize) as u32;
             let mut offset = 0x100;
             let mut match_bit;
             let mut bit;
             loop {
                 match_byte = match_byte << 1;
                 match_bit = match_byte & offset;
-                bit = decoder.rc().decode_bit(
+                bit = rc.decode_bit(
                     &mut self.coder.probs,
                     (offset + match_bit + symbol) as usize,
                 )? as u32;
@@ -254,31 +229,28 @@ impl LiteralSubdecoder {
                 }
             }
         }
-        decoder.lz().put_byte(symbol as u8);
-        decoder.state.update_literal();
+        lz.put_byte(symbol as u8);
+        coder.state.update_literal();
         Ok(())
     }
 }
 
 impl LengthCoder {
-    fn decode<R: Read>(&mut self, pos_state: usize, decoder: &mut LZMADecoder<R>) -> Result<i32> {
-        if decoder.rc().decode_bit(&mut self.choice, 0)? == 0 {
-            return Ok(decoder
-                .rc()
+    fn decode<R: Read>(&mut self, pos_state: usize, rc: &mut RangeDecoder<R>) -> Result<i32> {
+        if rc.decode_bit(&mut self.choice, 0)? == 0 {
+            return Ok(rc
                 .decode_bit_tree(&mut self.low[pos_state])?
                 .wrapping_add(MATCH_LEN_MIN as _));
         }
 
-        if decoder.rc().decode_bit(&mut self.choice, 1)? == 0 {
-            return Ok(decoder
-                .rc()
+        if rc.decode_bit(&mut self.choice, 1)? == 0 {
+            return Ok(rc
                 .decode_bit_tree(&mut self.mid[pos_state])?
                 .wrapping_add(MATCH_LEN_MIN as _)
                 .wrapping_add(LOW_SYMBOLS as _));
         }
 
-        let r = decoder
-            .rc()
+        let r = rc
             .decode_bit_tree(&mut self.high)?
             .wrapping_add(MATCH_LEN_MIN as _)
             .wrapping_add(LOW_SYMBOLS as _)

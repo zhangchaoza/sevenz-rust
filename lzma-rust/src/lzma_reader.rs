@@ -1,5 +1,4 @@
 use std::io::{Error, ErrorKind, Read, Result};
-use std::ptr::NonNull;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -35,10 +34,9 @@ fn get_dict_size(dict_size: u32) -> Result<u32> {
     Ok((dict_size + 15) & !15)
 }
 pub struct LZMAReader<R> {
-    reader: UnsafeReader<R>,
-    lz: NonNull<LZDecoder>,
-    rc: NonNull<RangeDecoder<UnsafeReader<R>>>,
-    lzma: LZMADecoder<UnsafeReader<R>>,
+    lz: LZDecoder,
+    rc: RangeDecoder<R>,
+    lzma: LZMADecoder,
     end_reached: bool,
     relaxed_end_cond: bool,
     remaining_size: u64,
@@ -46,11 +44,7 @@ pub struct LZMAReader<R> {
 
 impl<R> Drop for LZMAReader<R> {
     fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(self.lz.as_ptr()));
-            drop(Box::from_raw(self.rc.as_ptr()));
-            self.reader.clone().release();
-        }
+        // self.reader.clone().release();
     }
 }
 
@@ -102,29 +96,17 @@ impl<R: Read> LZMAReader<R> {
         if uncomp_size <= u64::MAX / 2 && dict_size as u64 > uncomp_size {
             dict_size = get_dict_size(uncomp_size as u32)?;
         }
-        let reader = UnsafeReader::new(reader);
-        let rc = RangeDecoder::new_stream(reader.clone());
+        let rc = RangeDecoder::new_stream(reader);
         let rc = match rc {
             Ok(r) => r,
             Err(e) => {
-                reader.release();
                 return Err(e);
             }
         };
         let lz = LZDecoder::new(get_dict_size(dict_size)? as _, preset_dict);
-        let lz = unsafe {
-            let lz = Box::new(lz);
-            let ptr = Box::into_raw(lz);
-            NonNull::new_unchecked(ptr)
-        };
-        let rc = unsafe {
-            let rc = Box::new(rc);
-            let ptr = Box::into_raw(rc);
-            NonNull::new_unchecked(ptr)
-        };
-        let lzma = LZMADecoder::new(lz, rc, lc, lp, pb);
+        let lzma = LZMADecoder::new(lc, lp, pb);
         Ok(Self {
-            reader,
+            // reader,
             lz,
             rc,
             lzma,
@@ -193,24 +175,20 @@ impl<R: Read> LZMAReader<R> {
             if self.remaining_size <= u64::MAX / 2 && (self.remaining_size as u32) < len {
                 copy_size_max = self.remaining_size as u32;
             }
-            unsafe {
-                self.lz.as_mut().set_limit(copy_size_max as usize);
-            }
+            self.lz.set_limit(copy_size_max as usize);
 
-            match self.lzma.decode() {
+            match self.lzma.decode(&mut self.lz, &mut self.rc) {
                 Ok(_) => {}
                 Err(e) => {
                     if self.remaining_size != u64::MAX || !self.lzma.end_marker_detected() {
                         return Err(e);
                     }
                     self.end_reached = true;
-                    unsafe {
-                        self.rc.as_mut().normalize()?;
-                    }
+                    self.rc.normalize()?;
                 }
             }
 
-            let copied_size = unsafe { self.lz.as_mut() }.flush(buf, off as _) as u32;
+            let copied_size = self.lz.flush(buf, off as _) as u32;
             off += copied_size;
             len -= copied_size;
             size += copied_size;
@@ -222,9 +200,9 @@ impl<R: Read> LZMAReader<R> {
             }
 
             if self.end_reached {
-                let lz = unsafe { self.lz.as_ref() };
-                let rc = unsafe { self.rc.as_ref() };
-                if lz.has_pending() || (!self.relaxed_end_cond && !rc.is_stream_finished()) {
+                if self.lz.has_pending()
+                    || (!self.relaxed_end_cond && !self.rc.is_stream_finished())
+                {
                     return Err(Error::new(
                         ErrorKind::InvalidData,
                         "end reached but not decoder finished",
@@ -240,28 +218,5 @@ impl<R: Read> LZMAReader<R> {
 impl<R: Read> Read for LZMAReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         self.read_decode(buf)
-    }
-}
-
-struct UnsafeReader<R>(NonNull<R>);
-impl<R> UnsafeReader<R> {
-    fn new(r: R) -> Self {
-        let r = Box::new(r);
-        let ptr = Box::into_raw(r);
-        unsafe { Self(NonNull::new_unchecked(ptr)) }
-    }
-
-    fn release(self) {
-        unsafe { Box::from_raw(self.0.as_ptr()) };
-    }
-}
-impl<R> Clone for UnsafeReader<R> {
-    fn clone(&self) -> Self {
-        Self(self.0)
-    }
-}
-impl<R: Read> Read for UnsafeReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        unsafe { self.0.as_mut().read(buf) }
     }
 }

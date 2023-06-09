@@ -1,15 +1,14 @@
 use std::{
     io::{Result, Write},
-    ops::{Deref, DerefMut},
-    ptr::NonNull,
+    ops::Deref,
 };
 
 use super::{bt4::BT4, hc4::HC4};
 
 pub trait MatchFinder {
-    fn find_matches(&mut self, encoder: &mut LZEncoder) -> MatchesHandle;
-    fn matches(&self) -> MatchesHandle;
-    fn skip(&mut self, encoder: &mut LZEncoder, len: usize);
+    fn find_matches(&mut self, encoder: &mut LZEncoderData);
+    fn matches(&mut self) -> &mut Matches;
+    fn skip(&mut self, encoder: &mut LZEncoderData, len: usize);
 }
 pub enum MatchFinders {
     HC4(HC4),
@@ -17,21 +16,21 @@ pub enum MatchFinders {
 }
 
 impl MatchFinder for MatchFinders {
-    fn find_matches(&mut self, encoder: &mut LZEncoder) -> MatchesHandle {
+    fn find_matches(&mut self, encoder: &mut LZEncoderData) {
         match self {
             MatchFinders::HC4(m) => m.find_matches(encoder),
             MatchFinders::BT4(m) => m.find_matches(encoder),
         }
     }
 
-    fn matches(&self) -> MatchesHandle {
+    fn matches(&mut self) -> &mut Matches {
         match self {
             MatchFinders::HC4(m) => m.matches(),
             MatchFinders::BT4(m) => m.matches(),
         }
     }
 
-    fn skip(&mut self, encoder: &mut LZEncoder, len: usize) {
+    fn skip(&mut self, encoder: &mut LZEncoderData, len: usize) {
         match self {
             MatchFinders::HC4(m) => m.skip(encoder, len),
             MatchFinders::BT4(m) => m.skip(encoder, len),
@@ -58,6 +57,11 @@ impl MFType {
     }
 }
 pub struct LZEncoder {
+    pub(crate) data: LZEncoderData,
+    pub(crate) match_finder: MatchFinders,
+}
+
+pub struct LZEncoderData {
     pub(crate) keep_size_before: u32,
     pub(crate) keep_size_after: u32,
     pub(crate) match_len_max: u32,
@@ -69,7 +73,6 @@ pub struct LZEncoder {
     pub(crate) finishing: bool,
     pub(crate) write_pos: i32,
     pub(crate) pending_size: u32,
-    pub(crate) match_finder: NonNull<MatchFinders>,
 }
 
 pub struct Matches {
@@ -85,26 +88,8 @@ impl Matches {
             count: 0,
         }
     }
-
-    pub unsafe fn new_handle(count_max: usize) -> MatchesHandle {
-        MatchesHandle(Box::into_raw(Box::new(Self::new(count_max))))
-    }
 }
 
-#[derive(Clone, Copy)]
-pub struct MatchesHandle(pub(crate) *mut Matches);
-impl Deref for MatchesHandle {
-    type Target = Matches;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0 }
-    }
-}
-impl DerefMut for MatchesHandle {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { &mut *self.0 }
-    }
-}
 impl LZEncoder {
     pub fn get_memery_usage(
         dict_size: u32,
@@ -131,20 +116,14 @@ impl LZEncoder {
         match_len_max: u32,
         depth_limit: i32,
     ) -> Self {
-        unsafe {
-            Self::new(
-                dict_size,
-                extra_size_before,
-                extra_size_after,
-                nice_len,
-                match_len_max,
-                Box::new(MatchFinders::HC4(HC4::new(
-                    dict_size,
-                    nice_len,
-                    depth_limit,
-                ))),
-            )
-        }
+        Self::new(
+            dict_size,
+            extra_size_before,
+            extra_size_after,
+            nice_len,
+            match_len_max,
+            MatchFinders::HC4(HC4::new(dict_size, nice_len, depth_limit)),
+        )
     }
 
     pub fn new_bt4(
@@ -155,28 +134,22 @@ impl LZEncoder {
         match_len_max: u32,
         depth_limit: i32,
     ) -> Self {
-        unsafe {
-            Self::new(
-                dict_size,
-                extra_size_before,
-                extra_size_after,
-                nice_len,
-                match_len_max,
-                Box::new(MatchFinders::BT4(BT4::new(
-                    dict_size,
-                    nice_len,
-                    depth_limit,
-                ))),
-            )
-        }
+        Self::new(
+            dict_size,
+            extra_size_before,
+            extra_size_after,
+            nice_len,
+            match_len_max,
+            MatchFinders::BT4(BT4::new(dict_size, nice_len, depth_limit)),
+        )
     }
-    unsafe fn new(
+    fn new(
         dict_size: u32,
         extra_size_before: u32,
         extra_size_after: u32,
         nice_len: u32,
         match_len_max: u32,
-        match_finder: Box<MatchFinders>,
+        match_finder: MatchFinders,
     ) -> Self {
         let buf_size = get_buf_size(
             dict_size,
@@ -189,18 +162,20 @@ impl LZEncoder {
         let keep_size_before = extra_size_before + dict_size;
         let keep_size_after = extra_size_after + match_len_max;
         Self {
-            keep_size_before,
-            keep_size_after,
-            match_len_max,
-            nice_len,
-            buf,
-            buf_size,
-            read_pos: -1,
-            read_limit: -1,
-            finishing: false,
-            write_pos: 0,
-            pending_size: 0,
-            match_finder: NonNull::new_unchecked(Box::into_raw(match_finder)),
+            data: LZEncoderData {
+                keep_size_before,
+                keep_size_after,
+                match_len_max,
+                nice_len,
+                buf,
+                buf_size,
+                read_pos: -1,
+                read_limit: -1,
+                finishing: false,
+                write_pos: 0,
+                pending_size: 0,
+            },
+            match_finder,
         }
     }
 
@@ -213,12 +188,36 @@ impl LZEncoder {
             }
         }
     }
+
+    pub fn find_matches(&mut self) {
+        self.match_finder.find_matches(&mut self.data)
+    }
+
+    pub fn matches(&mut self) -> &mut Matches {
+        self.match_finder.matches()
+    }
+
+    pub fn skip(&mut self, len: usize) {
+        self.match_finder.skip(&mut self.data, len)
+    }
+
+    pub fn set_preset_dict(&mut self, dict_size: u32, preset_dict: &[u8]) {
+        self.data
+            .set_preset_dict(dict_size, preset_dict, &mut self.match_finder)
+    }
+
+    pub fn set_finishing(&mut self) {
+        self.data.set_finishing(&mut self.match_finder)
+    }
+    pub fn fill_window(&mut self, input: &[u8]) -> usize {
+        self.data.fill_window(input, &mut self.match_finder)
+    }
+    pub fn set_flushing(&mut self) {
+        self.data.set_flushing(&mut self.match_finder)
+    }
 }
 
-impl LZEncoder {
-    fn match_finder(&self) -> &'static mut dyn MatchFinder {
-        unsafe { &mut *self.match_finder.as_ptr() }
-    }
+impl LZEncoderData {
     pub fn is_started(&self) -> bool {
         self.read_pos != -1
     }
@@ -226,14 +225,19 @@ impl LZEncoder {
     pub(super) fn buf_mut(&mut self) -> &mut [u8] {
         &mut self.buf[self.read_pos as usize..]
     }
-    pub fn set_preset_dict(&mut self, dict_size: u32, preset_dict: &[u8]) {
+    fn set_preset_dict(
+        &mut self,
+        dict_size: u32,
+        preset_dict: &[u8],
+        match_finder: &mut dyn MatchFinder,
+    ) {
         assert!(!self.is_started());
         assert!(self.write_pos == 0);
         let copy_size = preset_dict.len().min(dict_size as usize);
         let offset = preset_dict.len() - copy_size;
         self.buf[0..copy_size].copy_from_slice(&preset_dict[offset..(offset + copy_size)]);
         self.write_pos += copy_size as i32;
-        self.match_finder().skip(self, copy_size);
+        match_finder.skip(self, copy_size);
     }
 
     fn move_window(&mut self) {
@@ -245,7 +249,7 @@ impl LZEncoder {
         let offset = move_offset as usize;
         let end = offset + move_size;
         unsafe {
-            std::ptr::copy(
+            std::ptr::copy_nonoverlapping(
                 self.buf[offset..end].as_ptr(),
                 self.buf[0..].as_mut_ptr(),
                 move_size,
@@ -256,7 +260,7 @@ impl LZEncoder {
         self.write_pos -= move_offset;
     }
 
-    pub fn fill_window(&mut self, input: &[u8]) -> usize {
+    fn fill_window(&mut self, input: &[u8], match_finder: &mut dyn MatchFinder) -> usize {
         assert!(!self.finishing);
         if self.read_pos >= (self.buf_size as i32 - self.keep_size_after as i32) {
             self.move_window();
@@ -273,28 +277,28 @@ impl LZEncoder {
         if self.write_pos >= self.keep_size_after as i32 {
             self.read_limit = self.write_pos - self.keep_size_after as i32;
         }
-        self.process_pending_bytes();
+        self.process_pending_bytes(match_finder);
         len
     }
 
-    fn process_pending_bytes(&mut self) {
+    fn process_pending_bytes(&mut self, match_finder: &mut dyn MatchFinder) {
         if self.pending_size > 0 && self.read_pos < self.read_limit {
             self.read_pos -= self.pending_size as i32;
             let old_pending = self.pending_size;
             self.pending_size = 0;
-            self.match_finder().skip(self, old_pending as _);
+            match_finder.skip(self, old_pending as _);
             assert!(self.pending_size < old_pending)
         }
     }
 
-    pub fn set_flushing(&mut self) {
+    fn set_flushing(&mut self, match_finder: &mut dyn MatchFinder) {
         self.read_limit = self.write_pos - 1;
-        self.process_pending_bytes();
+        self.process_pending_bytes(match_finder);
     }
-    pub fn set_finishing(&mut self) {
+    fn set_finishing(&mut self, match_finder: &mut dyn MatchFinder) {
         self.read_limit = self.write_pos - 1;
         self.finishing = true;
-        self.process_pending_bytes();
+        self.process_pending_bytes(match_finder);
     }
 
     pub fn has_enough_data(&self, already_read_len: i32) -> bool {
@@ -383,27 +387,15 @@ impl LZEncoder {
         }
         avail
     }
+}
+impl Deref for LZEncoder {
+    type Target = LZEncoderData;
 
-    pub fn find_matches(&mut self) -> MatchesHandle {
-        self.match_finder().find_matches(self)
-    }
-
-    pub fn matches(&mut self) -> MatchesHandle {
-        self.match_finder().matches()
-    }
-
-    pub fn skip(&mut self, len: usize) {
-        self.match_finder().skip(self, len)
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
 }
 
-impl Drop for LZEncoder {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(self.match_finder.as_ptr()));
-        }
-    }
-}
 fn get_buf_size(
     dict_size: u32,
     extra_size_before: u32,

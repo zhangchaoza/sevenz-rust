@@ -79,7 +79,6 @@ impl<R: Read> Read for Crc32VerifyingReader<R> {
         if self.remaining <= 0 {
             let d = std::mem::replace(&mut self.crc_digest, CRC32.digest()).finalize();
             if d as u64 != self.expected_value {
-                println!("{d}=={}", self.expected_value);
                 return Err(std::io::Error::new(
                     ErrorKind::Other,
                     Error::ChecksumVerificationFailed,
@@ -1036,23 +1035,24 @@ impl<R: Read + Seek> SevenZReader<R> {
     }
 
     fn build_decode_stack<'r>(
-        &self,
         source: &'r mut R,
+        archive: &'r Archive,
         folder_index: usize,
+        password: &[u8],
     ) -> Result<(Box<dyn Read + 'r>, usize), Error> {
         let first_pack_stream_index =
-            self.archive.stream_map.folder_first_pack_stream_index[folder_index];
+            archive.stream_map.folder_first_pack_stream_index[folder_index];
         let folder_offset = SIGNATURE_HEADER_SIZE
-            + self.archive.pack_pos
-            + self.archive.stream_map.pack_stream_offsets[first_pack_stream_index];
+            + archive.pack_pos
+            + archive.stream_map.pack_stream_offsets[first_pack_stream_index];
 
         source
             .seek(SeekFrom::Start(folder_offset))
             .map_err(Error::io)?;
-        let pack_size = self.archive.pack_sizes[first_pack_stream_index] as usize;
+        let pack_size = archive.pack_sizes[first_pack_stream_index] as usize;
 
         let mut decoder: Box<dyn Read> = Box::new(BoundedReader::new(source, pack_size));
-        let folder = &self.archive.folders[folder_index];
+        let folder = &archive.folders[folder_index];
         for (index, coder) in folder.ordered_coder_iter() {
             if coder.num_in_streams != 1 || coder.num_out_streams != 1 {
                 return Err(Error::other(
@@ -1063,7 +1063,7 @@ impl<R: Read + Seek> SevenZReader<R> {
                 decoder,
                 folder.get_unpack_size_at_index(index) as usize,
                 coder,
-                &self.password,
+                password,
                 MAX_MEM_LIMIT_KB,
             )?;
             decoder = Box::new(next);
@@ -1083,66 +1083,50 @@ impl<R: Read + Seek> SevenZReader<R> {
         &mut self,
         mut each: F,
     ) -> Result<(), Error> {
-        let mut entry_index = 0;
-        let mut current_folder_index = -1;
-        let mut curent_reader: Option<Box<dyn Read>> = None;
-        let reader = (&mut self.source) as *mut R;
+        let folder_count = self.archive.folders.len();
+        for folder_index in 0..folder_count {
+            let (mut folder_reader, _size) = Self::build_decode_stack(
+                &mut self.source,
+                &self.archive,
+                folder_index,
+                &self.password,
+            )?;
+            let start = self.archive.stream_map.folder_first_file_index[folder_index];
+            let file_count = self.archive.folders[folder_index].num_unpack_sub_streams;
 
-        for file in self.archive.files.iter() {
-            let folder_index = self.archive.stream_map.file_folder_index[entry_index];
-
-            let folder_index = if let Some(f) = folder_index {
-                f
-            } else {
-                entry_index += 1;
-                let empty_reader: &mut dyn Read = &mut ([0u8; 0].as_slice());
-                each(file, empty_reader)?;
-                continue;
-            };
-
-            if current_folder_index != folder_index as i32 {
-                current_folder_index = folder_index as i32;
-
-                match self.build_decode_stack(unsafe { &mut *reader }, folder_index) {
-                    Ok((mut read, _size)) => {
-                        {
-                            let mut decoder: Box<dyn Read> =
-                                Box::new(BoundedReader::new(&mut read, file.size as usize));
-                            if file.has_crc {
-                                decoder = Box::new(Crc32VerifyingReader::new(
-                                    decoder,
-                                    file.size as usize,
-                                    file.crc,
-                                ));
-                            }
-                            if !each(file, &mut decoder)? {
-                                break;
-                            }
-                        }
-                        curent_reader = Some(read);
+            for file_index in start..(file_count + start) {
+                let file = &self.archive.files[file_index];
+                if file.has_stream && file.size > 0 {
+                    let mut decoder: Box<dyn Read> =
+                        Box::new(BoundedReader::new(&mut folder_reader, file.size as usize));
+                    if file.has_crc {
+                        decoder = Box::new(Crc32VerifyingReader::new(
+                            decoder,
+                            file.size as usize,
+                            file.crc,
+                        ));
                     }
-                    Err(e) => return Err(e),
-                }
-            } else {
-                if let Some(read) = curent_reader.as_mut() {
-                    {
-                        let mut decoder: Box<dyn Read> =
-                            Box::new(BoundedReader::new(read, file.size as usize));
-                        if file.has_crc {
-                            decoder = Box::new(Crc32VerifyingReader::new(
-                                decoder,
-                                file.size as usize,
-                                file.crc,
-                            ));
-                        }
-                        if !each(file, &mut decoder)? {
-                            break;
-                        }
+                    if !each(file, &mut decoder)? {
+                        return Ok(());
+                    }
+                } else {
+                    let empty_reader: &mut dyn Read = &mut ([0u8; 0].as_slice());
+                    if !each(file, empty_reader)? {
+                        return Ok(());
                     }
                 }
             }
-
-            entry_index += 1;
+        }
+        // decode empty files
+        for file_index in 0..self.archive.files.len() {
+            let folder_index = self.archive.stream_map.file_folder_index[file_index];
+            if folder_index.is_none() {
+                let file = &self.archive.files[file_index];
+                let empty_reader: &mut dyn Read = &mut ([0u8; 0].as_slice());
+                if !each(file, empty_reader)? {
+                    return Ok(());
+                }
+            }
         }
         Ok(())
     }
@@ -1152,9 +1136,3 @@ pub struct _FolderDecoder<'a, R: Read + Seek> {
     folder_index: usize,
     reader: &'a mut SevenZReader<R>,
 }
-
-// impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
-//     pub fn entries(&self)->&SevenZArchiveEntry{
-//         self.reader.archive.stream_map.folder_first_file_index[self.folder_index];
-//     }
-// }

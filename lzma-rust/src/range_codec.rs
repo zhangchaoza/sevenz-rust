@@ -336,9 +336,6 @@ impl RangeEncoder<()> {
         loop {
             let bit = symbol & 1;
             symbol >>= 1;
-            if symbol as usize >= probs.len() {
-                println!("symbol={}", symbol);
-            }
             price += Self::get_bit_price(probs[symbol as usize] as u32, bit as i32);
             if symbol == 1 {
                 break;

@@ -112,11 +112,7 @@ impl<R: Read> Read for SimpleReader<R> {
             // the beginning of the buffer so that more data can be
             // copied into filterBuf on the next loop iteration.
             if state.pos + state.filtered + state.unfiltered == FILTER_BUF_SIZE {
-                // let src = unsafe {
-                //     let src = &state.filter_buf
-                //         [state.pos..(state.pos + state.filtered + state.unfiltered)];
-                //     std::slice::from_raw_parts(src.as_ptr(), src.len())
-                // };
+                
 
                 // state.filter_buf.copy_from_slice(src);
                 state.filter_buf.rotate_left(state.pos);

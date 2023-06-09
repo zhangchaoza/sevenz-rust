@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use super::{
     encoder::LZMAEncoderTrait,
     lz::{LZEncoder, MFType},
@@ -27,27 +25,25 @@ fn change_pair(small_dist: u32, big_dist: u32) -> bool {
     small_dist < (big_dist >> 7)
 }
 impl LZMAEncoderTrait for FashEncoderMode {
-    fn get_next_symbol<W: Write>(&mut self, encoder: &mut super::encoder::LZMAEncoder<W>) -> u32 {
-        let mut matches = if encoder.read_ahead == -1 {
-            encoder.get_matches()
-        } else {
-            encoder.matches()
-        };
+    fn get_next_symbol(&mut self, encoder: &mut super::encoder::LZMAEncoder) -> u32 {
+        if encoder.data.read_ahead == -1 {
+            encoder.find_matches();
+        }
 
-        encoder.back = -1;
-        let avail = encoder.lz().get_avail().min(MATCH_LEN_MAX as i32);
+        encoder.data.back = -1;
+        let avail = encoder.lz.data.get_avail().min(MATCH_LEN_MAX as i32);
         if avail < MATCH_LEN_MIN as i32 {
             return 1;
         }
         let mut best_rep_len = 0;
         let mut best_rep_index = 0;
         for rep in 0..REPS {
-            let len = encoder.lz().get_match_len(encoder.reps[rep], avail);
+            let len = encoder.lz.data.get_match_len(encoder.reps[rep], avail);
             if len < MATCH_LEN_MIN {
                 continue;
             }
-            if len >= encoder.nice_len {
-                encoder.back = rep as i32;
+            if len >= encoder.data.nice_len {
+                encoder.data.back = rep as i32;
                 encoder.skip(len - 1);
                 return len as u32;
             }
@@ -59,12 +55,13 @@ impl LZMAEncoderTrait for FashEncoderMode {
 
         let mut main_len = 0;
         let mut main_dist = 0;
+        let matches = encoder.lz.matches();
         if matches.count > 0 {
             main_len = matches.len[matches.count as usize - 1];
             main_dist = matches.dist[matches.count as usize - 1];
 
-            if main_len >= encoder.nice_len as u32 {
-                encoder.back = (main_dist + REPS as i32) as _;
+            if main_len >= encoder.data.nice_len as u32 {
+                encoder.data.back = (main_dist + REPS as i32) as _;
                 encoder.skip((main_len - 1) as _);
                 return main_len;
             }
@@ -91,7 +88,7 @@ impl LZMAEncoderTrait for FashEncoderMode {
                 || (best_rep_len + 2 >= main_len as usize && main_dist >= (1 << 9))
                 || (best_rep_len + 3 >= main_len as usize && main_dist >= (1 << 15))
             {
-                encoder.back = best_rep_index as _;
+                encoder.data.back = best_rep_index as _;
                 encoder.skip(best_rep_len - 1);
                 return best_rep_len as _;
             }
@@ -102,8 +99,8 @@ impl LZMAEncoderTrait for FashEncoderMode {
         }
         // Get the next match. Test if it is better than the current match.
         // If so, encode the current byte as a literal.
-        matches = encoder.get_matches();
-
+        encoder.find_matches();
+        let matches = encoder.lz.matches();
         if matches.count > 0 {
             let new_len = matches.len[matches.count as usize - 1];
             let new_dist = matches.dist[matches.count as usize - 1];
@@ -121,12 +118,12 @@ impl LZMAEncoderTrait for FashEncoderMode {
 
         let limit = (main_len - 1).max(MATCH_LEN_MIN as _);
         for rep in 0..REPS {
-            if encoder.lz().get_match_len(encoder.reps[rep], limit as i32) == limit as _ {
+            if encoder.lz.get_match_len(encoder.reps[rep], limit as i32) == limit as _ {
                 return 1;
             }
         }
 
-        encoder.back = (main_dist + REPS as i32) as _;
+        encoder.data.back = (main_dist + REPS as i32) as _;
         encoder.skip((main_len - 2) as _);
         main_len
     }

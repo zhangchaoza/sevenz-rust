@@ -3,23 +3,19 @@ use std::vec;
 use super::{
     hash234::Hash234,
     lz_encoder::{LZEncoder, MatchFinder, Matches},
-    MatchesHandle,
+    LZEncoderData,
 };
 
 pub struct HC4 {
     hash: Hash234,
     chain: Vec<i32>,
-    matches: MatchesHandle,
+    matches: Matches,
     depth_limit: i32,
     cyclic_size: i32,
     cyclic_pos: i32,
     lz_pos: i32,
 }
-impl Drop for HC4 {
-    fn drop(&mut self) {
-        unsafe { drop(Box::from_raw(self.matches.0)) }
-    }
-}
+
 impl HC4 {
     pub fn get_mem_usage(dict_size: u32) -> u32 {
         Hash234::get_mem_usage(dict_size) + dict_size / (1024 / 4) + 10
@@ -29,7 +25,7 @@ impl HC4 {
         Self {
             hash: Hash234::new(dict_size),
             chain: vec![0; dict_size as usize + 1],
-            matches: MatchesHandle(Box::into_raw(Box::new(Matches::new(nice_len as usize - 1)))),
+            matches: Matches::new(nice_len as usize - 1),
             depth_limit: if depth_limit > 0 {
                 depth_limit as i32
             } else {
@@ -41,7 +37,7 @@ impl HC4 {
         }
     }
 
-    fn move_pos(&mut self, encoder: &mut LZEncoder) -> i32 {
+    fn move_pos(&mut self, encoder: &mut LZEncoderData) -> i32 {
         let avail = encoder.move_pos(4, 4);
         if avail != 0 {
             self.lz_pos += 1;
@@ -63,16 +59,17 @@ impl HC4 {
 }
 
 impl MatchFinder for HC4 {
-    fn find_matches(&mut self, encoder: &mut super::lz_encoder::LZEncoder) -> MatchesHandle {
-        let mut matches = self.matches;
+    fn find_matches(&mut self, encoder: &mut super::lz_encoder::LZEncoderData) {
+        let matches = &mut self.matches;
         matches.count = 0;
         let mut match_len_limit = encoder.match_len_max as i32;
         let mut nice_len_limit = encoder.nice_len as i32;
         let avail = self.move_pos(encoder);
+        let matches = &mut self.matches;
 
         if avail < match_len_limit {
             if avail == 0 {
-                return matches;
+                return;
             }
             match_len_limit = avail;
             if nice_len_limit > avail {
@@ -121,7 +118,7 @@ impl MatchFinder for HC4 {
             // Return if it is long enough (niceLen or reached the end of
             // the dictionary).
             if len_best >= nice_len_limit {
-                return matches;
+                return;
             }
         }
 
@@ -139,7 +136,7 @@ impl MatchFinder for HC4 {
             } == 0
                 || delta >= self.cyclic_size as i32
             {
-                return matches;
+                return;
             }
             let i = self.cyclic_pos - delta
                 + if delta > self.cyclic_pos {
@@ -177,14 +174,14 @@ impl MatchFinder for HC4 {
                     // Return if it is long enough (niceLen or reached the
                     // end of the dictionary).
                     if len >= nice_len_limit {
-                        return matches;
+                        return;
                     }
                 }
             }
         }
     }
 
-    fn skip(&mut self, encoder: &mut super::lz_encoder::LZEncoder, mut len: usize) {
+    fn skip(&mut self, encoder: &mut super::lz_encoder::LZEncoderData, mut len: usize) {
         while len > 0 {
             len -= 1;
             if self.move_pos(encoder) != 0 {
@@ -195,7 +192,7 @@ impl MatchFinder for HC4 {
         }
     }
 
-    fn matches(&self) -> MatchesHandle {
-        self.matches
+    fn matches(&mut self) -> &mut Matches {
+        &mut self.matches
     }
 }

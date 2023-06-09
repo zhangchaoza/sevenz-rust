@@ -1,20 +1,14 @@
-use super::{hash234::Hash234, LZEncoder, MatchFinder, Matches, MatchesHandle};
+use super::{hash234::Hash234, LZEncoder, MatchFinder, Matches};
 
 pub struct BT4 {
     hash: Hash234,
     tree: Vec<i32>,
-    matches: MatchesHandle,
+    matches: Matches,
     depth_limit: i32,
 
     cyclic_size: i32,
     cyclic_pos: i32,
     lz_pos: i32,
-}
-
-impl Drop for BT4 {
-    fn drop(&mut self) {
-        unsafe { drop(Box::from_raw(self.matches.0)) }
-    }
 }
 
 const MAX_POS: i32 = 0x7fffffff;
@@ -28,7 +22,7 @@ impl BT4 {
         Self {
             hash: Hash234::new(dict_size),
             tree: vec![0; cyclic_size as usize * 2],
-            matches: unsafe { Matches::new_handle(nice_len as usize - 1) },
+            matches: Matches::new(nice_len as usize - 1),
             depth_limit: if depth_limit > 0 {
                 depth_limit
             } else {
@@ -40,7 +34,7 @@ impl BT4 {
         }
     }
 
-    fn move_pos(&mut self, encoder: &mut super::LZEncoder) -> i32 {
+    fn move_pos(&mut self, encoder: &mut super::LZEncoderData) -> i32 {
         let avail = encoder.move_pos(encoder.nice_len as _, 0);
         if avail != 0 {
             self.lz_pos += 1;
@@ -63,7 +57,7 @@ impl BT4 {
 
     fn skip(
         &mut self,
-        encoder: &mut super::LZEncoder,
+        encoder: &mut super::LZEncoderData,
         nice_len_limit: i32,
         mut current_match: i32,
     ) {
@@ -133,9 +127,8 @@ impl BT4 {
 }
 
 impl MatchFinder for BT4 {
-    fn find_matches(&mut self, encoder: &mut super::LZEncoder) -> super::MatchesHandle {
-        let mut matches = self.matches;
-        matches.count = 0;
+    fn find_matches(&mut self, encoder: &mut super::LZEncoderData) {
+        self.matches.count = 0;
 
         let mut match_len_limit = encoder.match_len_max as i32;
         let mut nice_len_limit = encoder.nice_len as i32;
@@ -143,7 +136,7 @@ impl MatchFinder for BT4 {
 
         if avail < match_len_limit as i32 {
             if avail == 0 {
-                return matches;
+                return;
             }
             match_len_limit = avail;
             if nice_len_limit > avail {
@@ -167,6 +160,7 @@ impl MatchFinder for BT4 {
             && encoder.get_byte_backward(delta2) == encoder.get_current_byte()
         {
             len_best = 2;
+            let matches = &mut self.matches;
             matches.len[0] = 2;
             matches.dist[0] = delta2 - 1;
             matches.count = 1;
@@ -181,12 +175,14 @@ impl MatchFinder for BT4 {
             && encoder.get_byte_backward(delta3) == encoder.get_current_byte()
         {
             len_best = 3;
+            let matches = &mut self.matches;
             let count = matches.count as usize;
             matches.dist[count] = delta3 - 1;
             matches.count += 1;
             delta2 = delta3;
         }
 
+        let matches = &mut self.matches;
         // If a match was found, see how long it is.
         if matches.count > 0 {
             while len_best < match_len_limit
@@ -201,7 +197,7 @@ impl MatchFinder for BT4 {
             // the dictionary).
             if len_best >= nice_len_limit {
                 self.skip(encoder, nice_len_limit, current_match);
-                return matches;
+                return;
             }
         }
 
@@ -232,7 +228,7 @@ impl MatchFinder for BT4 {
             {
                 self.tree[ptr0 as usize] = 0;
                 self.tree[ptr1 as usize] = 0;
-                return matches;
+                return;
             }
 
             let pair = self.cyclic_pos - delta
@@ -265,7 +261,7 @@ impl MatchFinder for BT4 {
                     if len >= nice_len_limit {
                         self.tree[ptr1 as usize] = self.tree[pair as usize];
                         self.tree[ptr0 as usize] = self.tree[pair as usize + 1];
-                        return matches;
+                        return;
                     }
                 }
             }
@@ -284,11 +280,11 @@ impl MatchFinder for BT4 {
         }
     }
 
-    fn matches(&self) -> super::MatchesHandle {
-        self.matches
+    fn matches(&mut self) -> &mut super::Matches {
+        &mut self.matches
     }
 
-    fn skip(&mut self, encoder: &mut super::LZEncoder, len: usize) {
+    fn skip(&mut self, encoder: &mut super::LZEncoderData, len: usize) {
         let mut len = len as i32;
         while {
             let n = len > 0;

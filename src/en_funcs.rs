@@ -2,7 +2,7 @@
 //!
 
 use std::{
-    fs::{File, FileType},
+    fs::File,
     io::{Seek, Write},
     path::{Path, PathBuf},
 };

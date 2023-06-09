@@ -137,7 +137,7 @@ impl LZMACoder {
     }
 
     pub fn get_dist_special(&mut self, i: usize) -> &mut [u16] {
-        let ds: &mut [&mut [u16]] = &mut [
+        let ds: [&mut [u16]; 10] = [
             &mut self.dist_special.0,
             &mut self.dist_special.1,
             &mut self.dist_special.2,
@@ -149,9 +149,7 @@ impl LZMACoder {
             &mut self.dist_special.8,
             &mut self.dist_special.9,
         ];
-        let len = ds[i].len();
-        let d = ds[i].as_mut_ptr();
-        unsafe { std::slice::from_raw_parts_mut(d, len) }
+        ds[i]
     }
 }
 

@@ -4,17 +4,14 @@ use super::{
     range_codec::{RangeDecoder, RangeDecoderBuffer},
 };
 use byteorder::{self, BigEndian, ReadBytesExt};
-use std::{
-    io::{ErrorKind, Read, Result},
-    ptr::NonNull,
-};
+use std::io::{ErrorKind, Read, Result};
 pub const COMPRESSED_SIZE_MAX: u32 = 1 << 16;
 
 pub struct LZMA2Reader<R> {
     inner: R,
-    lz: NonNull<LZDecoder>,
-    rc: NonNull<RangeDecoder<RangeDecoderBuffer>>,
-    lzma: Option<LZMADecoder<RangeDecoderBuffer>>,
+    lz: LZDecoder,
+    rc: RangeDecoder<RangeDecoderBuffer>,
+    lzma: Option<LZMADecoder>,
     uncompressed_size: usize,
     is_lzma_chunk: bool,
     need_dict_reset: bool,
@@ -35,16 +32,8 @@ fn get_dict_size(dict_size: u32) -> u32 {
 impl<R: Read> LZMA2Reader<R> {
     pub fn new(inner: R, dict_size: u32, preset_dict: Option<&[u8]>) -> Self {
         let has_preset = preset_dict.as_ref().map(|a| a.len() > 0).unwrap_or(false);
-        let lz = unsafe {
-            let lz = LZDecoder::new(get_dict_size(dict_size) as _, preset_dict);
-            let ptr = Box::into_raw(Box::new(lz));
-            NonNull::new_unchecked(ptr)
-        };
-        let rc = unsafe {
-            let lz = RangeDecoder::new_buffer(COMPRESSED_SIZE_MAX as _);
-            let ptr = Box::into_raw(Box::new(lz));
-            NonNull::new_unchecked(ptr)
-        };
+        let lz = LZDecoder::new(get_dict_size(dict_size) as _, preset_dict);
+        let rc = RangeDecoder::new_buffer(COMPRESSED_SIZE_MAX as _);
         Self {
             inner,
             lz,
@@ -69,9 +58,7 @@ impl<R: Read> LZMA2Reader<R> {
         if control >= 0xE0 || control == 0x01 {
             self.need_props = true;
             self.need_dict_reset = false;
-            unsafe {
-                self.lz.as_mut().reset();
-            }
+            self.lz.reset();
         } else if self.need_dict_reset {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
@@ -94,7 +81,7 @@ impl<R: Read> LZMA2Reader<R> {
             } else if control >= 0xA0 {
                 self.lzma.as_mut().map(|l| l.reset());
             }
-            unsafe { &mut *self.rc.as_ptr() }.prepare(&mut self.inner, compressed_size)?;
+            self.rc.prepare(&mut self.inner, compressed_size)?;
         } else if control > 0x02 {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
@@ -125,9 +112,7 @@ impl<R: Read> LZMA2Reader<R> {
                 "Corrupted input data (LZMA2:4)",
             ));
         }
-        self.lzma = Some(LZMADecoder::new(
-            self.lz, self.rc, lc as _, lp as _, pb as _,
-        ));
+        self.lzma = Some(LZMADecoder::new(lc as _, lp as _, pb as _));
 
         Ok(())
     }
@@ -156,23 +141,22 @@ impl<R: Read> LZMA2Reader<R> {
 
             let copy_size_max = self.uncompressed_size.min(len);
             if !self.is_lzma_chunk {
-                unsafe { &mut *self.lz.as_ptr() }
-                    .copy_uncompressed(&mut self.inner, copy_size_max)?;
+                self.lz.copy_uncompressed(&mut self.inner, copy_size_max)?;
             } else {
-                unsafe { self.lz.as_mut() }.set_limit(copy_size_max);
+                self.lz.set_limit(copy_size_max);
                 if let Some(lzma) = self.lzma.as_mut() {
-                    lzma.decode()?;
+                    lzma.decode(&mut self.lz, &mut self.rc)?;
                 }
             }
 
-            unsafe {
-                let copied_size = self.lz.as_mut().flush(buf, off);
+            {
+                let copied_size = self.lz.flush(buf, off);
                 off += copied_size;
                 len -= copied_size;
                 size += copied_size;
                 self.uncompressed_size -= copied_size;
                 if self.uncompressed_size == 0 {
-                    if !self.rc.as_ref().is_finished() || self.lz.as_ref().has_pending() {
+                    if !self.rc.is_finished() || self.lz.has_pending() {
                         return Err(std::io::Error::new(
                             ErrorKind::InvalidInput,
                             "rc not finished or lz has pending",
@@ -194,15 +178,6 @@ impl<R: Read> Read for LZMA2Reader<R> {
                 self.error = Some(e);
                 return Err(error);
             }
-        }
-    }
-}
-
-impl<R> Drop for LZMA2Reader<R> {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(self.lz.as_ptr()));
-            drop(Box::from_raw(self.rc.as_ptr()));
         }
     }
 }
