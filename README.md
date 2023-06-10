@@ -117,6 +117,12 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.4.2 - 2023-06-10
+- Removed unsafe code
+- Changed `SevenZWriter.finish` method return inner writer
+- Added wasm compress function
+- Updates bzip dependency to the patch version of 0.4.4([#23](https://github.com/dyz1990/sevenz-rust/pull/23))
+
 ### 0.4.1 - 2023-06-07
 - Fixed unable to build without default features
 
