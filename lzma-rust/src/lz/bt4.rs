@@ -1,9 +1,8 @@
-use super::{hash234::Hash234, LZEncoder, MatchFinder, Matches};
+use super::{hash234::Hash234, LZEncoder, MatchFind, Matches};
 
 pub struct BT4 {
     hash: Hash234,
     tree: Vec<i32>,
-    matches: Matches,
     depth_limit: i32,
 
     cyclic_size: i32,
@@ -22,7 +21,6 @@ impl BT4 {
         Self {
             hash: Hash234::new(dict_size),
             tree: vec![0; cyclic_size as usize * 2],
-            matches: Matches::new(nice_len as usize - 1),
             depth_limit: if depth_limit > 0 {
                 depth_limit
             } else {
@@ -34,8 +32,12 @@ impl BT4 {
         }
     }
 
+    pub fn get_mem_usage(dict_size: u32) -> u32 {
+        Hash234::get_mem_usage(dict_size) + dict_size / (1024 / 8) + 10
+    }
+
     fn move_pos(&mut self, encoder: &mut super::LZEncoderData) -> i32 {
-        let avail = encoder.move_pos(encoder.nice_len as _, 0);
+        let avail = encoder.move_pos(encoder.nice_len as _, 4);
         if avail != 0 {
             self.lz_pos += 1;
             if self.lz_pos == MAX_POS {
@@ -126,9 +128,9 @@ impl BT4 {
     }
 }
 
-impl MatchFinder for BT4 {
-    fn find_matches(&mut self, encoder: &mut super::LZEncoderData) {
-        self.matches.count = 0;
+impl MatchFind for BT4 {
+    fn find_matches(&mut self, encoder: &mut super::LZEncoderData,matches: &mut Matches) {
+        matches.count = 0;
 
         let mut match_len_limit = encoder.match_len_max as i32;
         let mut nice_len_limit = encoder.nice_len as i32;
@@ -160,7 +162,6 @@ impl MatchFinder for BT4 {
             && encoder.get_byte_backward(delta2) == encoder.get_current_byte()
         {
             len_best = 2;
-            let matches = &mut self.matches;
             matches.len[0] = 2;
             matches.dist[0] = delta2 - 1;
             matches.count = 1;
@@ -175,14 +176,12 @@ impl MatchFinder for BT4 {
             && encoder.get_byte_backward(delta3) == encoder.get_current_byte()
         {
             len_best = 3;
-            let matches = &mut self.matches;
             let count = matches.count as usize;
             matches.dist[count] = delta3 - 1;
             matches.count += 1;
             delta2 = delta3;
         }
 
-        let matches = &mut self.matches;
         // If a match was found, see how long it is.
         if matches.count > 0 {
             while len_best < match_len_limit
@@ -278,10 +277,6 @@ impl MatchFinder for BT4 {
                 len0 = len;
             }
         }
-    }
-
-    fn matches(&mut self) -> &mut super::Matches {
-        &mut self.matches
     }
 
     fn skip(&mut self, encoder: &mut super::LZEncoderData, len: usize) {

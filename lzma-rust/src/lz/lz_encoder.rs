@@ -5,9 +5,8 @@ use std::{
 
 use super::{bt4::BT4, hc4::HC4};
 
-pub trait MatchFinder {
-    fn find_matches(&mut self, encoder: &mut LZEncoderData);
-    fn matches(&mut self) -> &mut Matches;
+pub trait MatchFind {
+    fn find_matches(&mut self, encoder: &mut LZEncoderData, matches: &mut Matches);
     fn skip(&mut self, encoder: &mut LZEncoderData, len: usize);
 }
 pub enum MatchFinders {
@@ -15,18 +14,11 @@ pub enum MatchFinders {
     BT4(BT4),
 }
 
-impl MatchFinder for MatchFinders {
-    fn find_matches(&mut self, encoder: &mut LZEncoderData) {
+impl MatchFind for MatchFinders {
+    fn find_matches(&mut self, encoder: &mut LZEncoderData, matches: &mut Matches) {
         match self {
-            MatchFinders::HC4(m) => m.find_matches(encoder),
-            MatchFinders::BT4(m) => m.find_matches(encoder),
-        }
-    }
-
-    fn matches(&mut self) -> &mut Matches {
-        match self {
-            MatchFinders::HC4(m) => m.matches(),
-            MatchFinders::BT4(m) => m.matches(),
+            MatchFinders::HC4(m) => m.find_matches(encoder, matches),
+            MatchFinders::BT4(m) => m.find_matches(encoder, matches),
         }
     }
 
@@ -49,15 +41,17 @@ impl Default for MFType {
     }
 }
 impl MFType {
+    #[inline]
     fn get_memery_usage(self, dict_size: u32) -> u32 {
         match self {
             MFType::HC4 => HC4::get_mem_usage(dict_size),
-            MFType::BT4 => todo!(),
+            MFType::BT4 => BT4::get_mem_usage(dict_size),
         }
     }
 }
 pub struct LZEncoder {
     pub(crate) data: LZEncoderData,
+    pub(crate) matches: Matches,
     pub(crate) match_finder: MatchFinders,
 }
 
@@ -175,6 +169,7 @@ impl LZEncoder {
                 write_pos: 0,
                 pending_size: 0,
             },
+            matches: Matches::new(nice_len as usize - 1),
             match_finder,
         }
     }
@@ -190,11 +185,12 @@ impl LZEncoder {
     }
 
     pub fn find_matches(&mut self) {
-        self.match_finder.find_matches(&mut self.data)
+        self.match_finder
+            .find_matches(&mut self.data, &mut self.matches)
     }
 
     pub fn matches(&mut self) -> &mut Matches {
-        self.match_finder.matches()
+        &mut self.matches
     }
 
     pub fn skip(&mut self, len: usize) {
@@ -215,6 +211,10 @@ impl LZEncoder {
     pub fn set_flushing(&mut self) {
         self.data.set_flushing(&mut self.match_finder)
     }
+
+    pub fn verify_matches(&self) -> bool {
+        self.data.verify_matches(&self.matches)
+    }
 }
 
 impl LZEncoderData {
@@ -229,7 +229,7 @@ impl LZEncoderData {
         &mut self,
         dict_size: u32,
         preset_dict: &[u8],
-        match_finder: &mut dyn MatchFinder,
+        match_finder: &mut dyn MatchFind,
     ) {
         assert!(!self.is_started());
         assert!(self.write_pos == 0);
@@ -260,7 +260,7 @@ impl LZEncoderData {
         self.write_pos -= move_offset;
     }
 
-    fn fill_window(&mut self, input: &[u8], match_finder: &mut dyn MatchFinder) -> usize {
+    fn fill_window(&mut self, input: &[u8], match_finder: &mut dyn MatchFind) -> usize {
         assert!(!self.finishing);
         if self.read_pos >= (self.buf_size as i32 - self.keep_size_after as i32) {
             self.move_window();
@@ -281,7 +281,7 @@ impl LZEncoderData {
         len
     }
 
-    fn process_pending_bytes(&mut self, match_finder: &mut dyn MatchFinder) {
+    fn process_pending_bytes(&mut self, match_finder: &mut dyn MatchFind) {
         if self.pending_size > 0 && self.read_pos < self.read_limit {
             self.read_pos -= self.pending_size as i32;
             let old_pending = self.pending_size;
@@ -291,11 +291,11 @@ impl LZEncoderData {
         }
     }
 
-    fn set_flushing(&mut self, match_finder: &mut dyn MatchFinder) {
+    fn set_flushing(&mut self, match_finder: &mut dyn MatchFind) {
         self.read_limit = self.write_pos - 1;
         self.process_pending_bytes(match_finder);
     }
-    fn set_finishing(&mut self, match_finder: &mut dyn MatchFinder) {
+    fn set_finishing(&mut self, match_finder: &mut dyn MatchFind) {
         self.read_limit = self.write_pos - 1;
         self.finishing = true;
         self.process_pending_bytes(match_finder);
@@ -361,7 +361,8 @@ impl LZEncoderData {
         }
         return len as _;
     }
-    pub fn verify_matches(&self, matches: &Matches) -> bool {
+
+    fn verify_matches(&self, matches: &Matches) -> bool {
         let len_limit = self.get_avail().min(self.match_len_max as i32);
         for i in 0..matches.count as usize {
             if self.get_match_len(matches.dist[i] as i32, len_limit) != matches.len[i] as _ {

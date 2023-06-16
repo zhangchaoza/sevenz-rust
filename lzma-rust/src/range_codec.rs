@@ -211,6 +211,12 @@ impl<W: Write> RangeEncoder<W> {
         e.reset();
         e
     }
+
+    #[inline]
+    pub fn inner(&mut self) -> &mut W {
+        &mut self.inner
+    }
+
     pub fn reset(&mut self) {
         self.low = 0;
         self.range = 0xFFFFFFFFu32;
@@ -218,7 +224,7 @@ impl<W: Write> RangeEncoder<W> {
         self.cache_size = 1;
     }
 
-    fn finish(&mut self) -> Result<Option<usize>> {
+    pub fn finish(&mut self) -> Result<Option<usize>> {
         for _i in 0..5 {
             self.shift_low()?;
         }

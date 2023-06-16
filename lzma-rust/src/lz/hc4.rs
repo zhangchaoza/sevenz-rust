@@ -2,14 +2,14 @@ use std::vec;
 
 use super::{
     hash234::Hash234,
-    lz_encoder::{LZEncoder, MatchFinder, Matches},
+    lz_encoder::{LZEncoder, MatchFind, Matches},
     LZEncoderData,
 };
 
 pub struct HC4 {
     hash: Hash234,
     chain: Vec<i32>,
-    matches: Matches,
+    // matches: Matches,
     depth_limit: i32,
     cyclic_size: i32,
     cyclic_pos: i32,
@@ -25,7 +25,7 @@ impl HC4 {
         Self {
             hash: Hash234::new(dict_size),
             chain: vec![0; dict_size as usize + 1],
-            matches: Matches::new(nice_len as usize - 1),
+            // matches: Matches::new(nice_len as usize - 1),
             depth_limit: if depth_limit > 0 {
                 depth_limit as i32
             } else {
@@ -58,14 +58,16 @@ impl HC4 {
     }
 }
 
-impl MatchFinder for HC4 {
-    fn find_matches(&mut self, encoder: &mut super::lz_encoder::LZEncoderData) {
-        let matches = &mut self.matches;
+impl MatchFind for HC4 {
+    fn find_matches(
+        &mut self,
+        encoder: &mut super::lz_encoder::LZEncoderData,
+        matches: &mut Matches,
+    ) {
         matches.count = 0;
         let mut match_len_limit = encoder.match_len_max as i32;
         let mut nice_len_limit = encoder.nice_len as i32;
         let avail = self.move_pos(encoder);
-        let matches = &mut self.matches;
 
         if avail < match_len_limit {
             if avail == 0 {
@@ -192,7 +194,4 @@ impl MatchFinder for HC4 {
         }
     }
 
-    fn matches(&mut self) -> &mut Matches {
-        &mut self.matches
-    }
 }

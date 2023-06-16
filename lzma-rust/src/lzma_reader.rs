@@ -33,6 +33,24 @@ fn get_dict_size(dict_size: u32) -> Result<u32> {
     let dict_size = dict_size.max(4096);
     Ok((dict_size + 15) & !15)
 }
+
+/// # Examples
+/// ```
+/// use std::io::Read;
+/// use lzma_rust::LZMAReader;
+/// let compressed = [93, 0, 0, 128, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 36, 25, 73, 152, 111, 22, 2, 140, 232, 230, 91, 177, 71, 198, 206, 183, 99, 255, 255, 60, 172, 0, 0];
+/// let mut reader = LZMAReader::new(&compressed[..]).unwrap();
+/// let mut buf = [0; 1024];
+/// let mut out = Vec::new();
+/// loop {
+///    let n = reader.read(&mut buf).unwrap();
+///   if n == 0 {
+///      break;
+///   }
+///   out.extend_from_slice(&buf[..n]);
+/// }
+/// assert_eq!(out, b"Hello, world!");
+/// ```
 pub struct LZMAReader<R> {
     lz: LZDecoder,
     rc: RangeDecoder<R>,
@@ -116,6 +134,10 @@ impl<R: Read> LZMAReader<R> {
         })
     }
 
+    ///
+    /// Creates a new .lzma file format decompressor with an optional memory usage limit.
+    /// - [mem_limit_kb] - memory usage limit in kibibytes (KiB). u32::MAX means no limit.
+    /// - [preset_dict] - preset dictionary or None to use no preset dictionary.
     pub fn new_mem_limit(
         mut reader: R,
         mem_limit_kb: u32,
@@ -138,6 +160,12 @@ impl<R: Read> LZMAReader<R> {
         Self::construct1(reader, uncomp_size, props, dict_size, preset_dict)
     }
 
+    /// Creates a new input stream that decompresses raw LZMA data (no .lzma header) from `reader` optionally with a preset dictionary.
+    /// - [reader] - the reader to read compressed data from.
+    /// - [uncomp_size] - the uncompressed size of the data to be decompressed.
+    /// - [props] - the LZMA properties byte.
+    /// - [dict_size] - the LZMA dictionary size.
+    /// - [preset_dict] - preset dictionary or None to use no preset dictionary.
     pub fn new_with_props(
         reader: R,
         uncomp_size: u64,
@@ -148,6 +176,14 @@ impl<R: Read> LZMAReader<R> {
         Self::construct1(reader, uncomp_size, props, dict_size, preset_dict)
     }
 
+    /// Creates a new input stream that decompresses raw LZMA data (no .lzma header) from `reader` optionally with a preset dictionary.
+    /// - [reader] - the input stream to read compressed data from.
+    /// - [uncomp_size] - the uncompressed size of the data to be decompressed.
+    /// - [lc] - the number of literal context bits.
+    /// - [lp] - the number of literal position bits.
+    /// - [pb] - the number of position bits.
+    /// - [dict_size] - the LZMA dictionary size.
+    /// - [preset_dict] - preset dictionary or None to use no preset dictionary.
     pub fn new(
         reader: R,
         uncomp_size: u64,

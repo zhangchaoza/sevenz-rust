@@ -123,6 +123,11 @@ impl LZMA2Options {
         let extra_size_before = get_extra_size_before(dict_size);
         70 + LZMAEncoder::get_mem_usage(self.mode, dict_size, extra_size_before, self.mf)
     }
+
+    #[inline(always)]
+    pub fn get_props(&self) -> u8 {
+        ((self.pb * 5 + self.lp) * 9 + self.lc) as u8
+    }
 }
 const COMPRESSED_SIZE_MAX: u32 = 64 << 10;
 pub fn get_extra_size_before(dict_size: u32) -> u32 {
@@ -132,12 +137,23 @@ pub fn get_extra_size_before(dict_size: u32) -> u32 {
         0
     };
 }
+
+/// LZMA2 format writer
+/// # Examples
+/// ```
+/// use std::io::Write;
+/// use lzma_rust::enc::lzma2_writer::{LZMA2Options, LZMA2Writer};
+/// let mut writer = LZMA2Writer::new(Vec::new(), &LZMA2Options::default());
+///    writer.write_all(b"hello world").unwrap();
+///    let compressed = writer.finish().unwrap();
+///
+/// ```
 pub struct LZMA2Writer<W: Write> {
     inner: CountingWriter<W>,
     rc: RangeEncoder<RangeEncoderBuffer>,
     lzma: LZMAEncoder,
     mode: LZMAEncoderModes,
-    props: u32,
+    props: u8,
     dict_reset_needed: bool,
     state_reset_needed: bool,
     props_needed: bool,
@@ -160,7 +176,7 @@ impl<W: Write> LZMA2Writer<W> {
             options.nice_len as usize,
         );
 
-        let props = (options.pb * 5 + options.lp) * 9 + options.lc;
+        let props = options.get_props();
         let mut dict_reset_needed = true;
         if let Some(preset_dict) = &options.preset_dict {
             lzma.lz.set_preset_dict(dict_size, preset_dict);

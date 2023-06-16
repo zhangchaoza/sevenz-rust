@@ -1,5 +1,3 @@
-use crate::lz::MatchFinder;
-
 use super::{
     encoder_fast::FashEncoderMode,
     encoder_normal::NormalEncoderMode,
@@ -418,7 +416,7 @@ impl LZMAEncoder {
     pub(super) fn find_matches(&mut self) {
         self.data.read_ahead += 1;
         self.lz.find_matches();
-        assert!(self.lz.data.verify_matches(self.lz.match_finder.matches()));
+        assert!(self.lz.verify_matches());
     }
 
     pub(super) fn skip(&mut self, len: usize) {

@@ -7,6 +7,19 @@ use byteorder::{self, BigEndian, ReadBytesExt};
 use std::io::{ErrorKind, Read, Result};
 pub const COMPRESSED_SIZE_MAX: u32 = 1 << 16;
 
+/// Decompresses a raw LZMA2 stream (no XZ headers).
+/// # Examples
+/// ```
+/// use std::io::Read;
+/// use lzma_rust::LZMA2Reader;
+/// use lzma_rust::LZMA2Options;
+/// let compressed = [1, 0, 12, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 0];
+/// let mut reader = LZMA2Reader::new(compressed, LZMA2Options::DICT_SIZE_DEFAULT, None);
+/// let mut decompressed = Vec::new();
+/// reader.read_to_end(&mut decompressed);
+/// assert_eq!(&decompressed[..], b"Hello, world!");
+/// 
+/// ```
 pub struct LZMA2Reader<R> {
     inner: R,
     lz: LZDecoder,
@@ -30,6 +43,9 @@ fn get_dict_size(dict_size: u32) -> u32 {
 }
 
 impl<R: Read> LZMA2Reader<R> {
+    /// Create a new LZMA2 reader.
+    /// `inner` is the reader to read compressed data from.
+    /// `dict_size` is the dictionary size in bytes.
     pub fn new(inner: R, dict_size: u32, preset_dict: Option<&[u8]>) -> Self {
         let has_preset = preset_dict.as_ref().map(|a| a.len() > 0).unwrap_or(false);
         let lz = LZDecoder::new(get_dict_size(dict_size) as _, preset_dict);
