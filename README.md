@@ -117,6 +117,9 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.4.3 - 2023-0616
+- Support write encoded header
+- Added `LZMAWriter`
 ### 0.4.2 - 2023-06-10
 - Removed unsafe code
 - Changed `SevenZWriter.finish` method return inner writer
