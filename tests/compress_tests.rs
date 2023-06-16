@@ -42,6 +42,21 @@ fn compress_one_file_with_content() {
 
 #[cfg(feature = "compress")]
 #[test]
+fn compress_empty_folder() {
+    let temp_dir = tempdir().unwrap();
+    let folder = temp_dir.path().join("folder");
+    std::fs::create_dir(&folder).unwrap();
+    let dest = temp_dir.path().join("folder.7z");
+    compress_to_path(&folder, &dest).expect("compress ok");
+
+    let decompress_dest = temp_dir.path().join("decompress");
+    decompress_file(dest, &decompress_dest).expect("decompress ok");
+    assert!(decompress_dest.exists());
+    assert!(decompress_dest.read_dir().unwrap().next().is_none());
+}
+
+#[cfg(feature = "compress")]
+#[test]
 fn compress_folder_with_one_file() {
     let temp_dir = tempdir().unwrap();
     let folder = temp_dir.path().join("folder");

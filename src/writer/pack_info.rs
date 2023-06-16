@@ -4,12 +4,13 @@ use super::*;
 pub struct PackInfo {
     pub crcs: Vec<u32>,
     pub sizes: Vec<u64>,
+    pub pos: u64,
 }
 
 impl PackInfo {
     pub fn write_to<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
         header.write_u8(K_PACK_INFO)?;
-        write_u64(header, 0)?;
+        write_u64(header, self.pos)?;
         write_u64(header, self.len() as u64)?;
         header.write_u8(K_SIZE)?;
         for size in &self.sizes {

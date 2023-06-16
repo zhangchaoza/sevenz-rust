@@ -62,6 +62,8 @@ impl UnpackInfo {
     }
 
     pub(crate) fn write_substreams<H: Write>(&self, header: &mut H) -> std::io::Result<()> {
+        header.write_u8(K_SUB_STREAMS_INFO)?;
+
         header.write_u8(K_NUM_UNPACK_STREAM)?;
         for f in &self.folders {
             write_u64(header, f.num_sub_unpack_streams)?;
@@ -87,6 +89,7 @@ impl UnpackInfo {
                 header.write_u32::<LittleEndian>(crc)?;
             }
         }
+        header.write_u8(K_END)?;
 
         Ok(())
     }

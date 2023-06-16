@@ -95,6 +95,9 @@ fn decompress_impl<R: Read + Seek>(
     src_reader.seek(SeekFrom::Start(pos)).map_err(Error::io)?;
     let mut seven = SevenZReader::new(src_reader, len, password)?;
     let dest = PathBuf::from(dest.as_ref());
+    if !dest.exists() {
+        std::fs::create_dir_all(&dest).map_err(Error::io)?;
+    }
     seven.for_each_entries(|entry, reader| {
         let dest_path = dest.join(entry.name());
         extract_fn(entry, reader, &dest_path)

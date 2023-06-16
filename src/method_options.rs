@@ -53,6 +53,7 @@ impl MethodOptions {
             MethodOptions::Num(n) => *n,
             #[cfg(feature = "compress")]
             MethodOptions::LZMA2(o) => o.dict_size,
+            #[allow(unused)]
             _ => 0,
         }
     }

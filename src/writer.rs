@@ -338,9 +338,9 @@ impl<W: Write + Seek> SevenZWriter<W> {
 
     /// Finishes the compression.
     pub fn finish(mut self) -> std::io::Result<W> {
-        let header_pos = self.output.stream_position()?;
         let mut header: Vec<u8> = Vec::with_capacity(64 * 1024);
-        self.write_header(&mut header)?;
+        self.write_encoded_header(&mut header)?;
+        let header_pos = self.output.stream_position()?;
         self.output.write_all(&header)?;
         let crc32 = CRC32.checksum(&header);
         let mut hh = [0u8; SIGNATURE_HEADER_SIZE as usize];
@@ -376,19 +376,68 @@ impl<W: Write + Seek> SevenZWriter<W> {
         Ok(())
     }
 
+    fn write_encoded_header<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
+        let mut raw_header = Vec::with_capacity(64 * 1024);
+        self.write_header(&mut raw_header)?;
+        let mut pack_info = PackInfo::default();
+
+        let position = self.output.stream_position()?;
+        let pos = position - SIGNATURE_HEADER_SIZE;
+        pack_info.pos = pos;
+
+        let mut more_sizes = vec![];
+        let size = raw_header.len() as u64;
+        let crc = CRC32.checksum(&raw_header);
+        let methods = vec![SevenZMethodConfiguration::new(SevenZMethod::LZMA)
+            .with_options(LZMA2Options::with_preset(6).into())];
+
+        let methods = Arc::new(methods);
+
+        let mut encoded_data = Vec::with_capacity(size as usize / 2);
+
+        let mut compress_size = 0;
+        let mut compressed = CompressWrapWriter::new(&mut encoded_data, &mut compress_size);
+
+        {
+            let mut encoder = Self::create_writer(&methods, &mut compressed, &mut more_sizes)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            encoder.write_all(&raw_header)?;
+            encoder.write(&[])?;
+        }
+        let compress_crc = compressed.crc_value();
+        let compress_size = *compressed.bytes_written;
+        if compress_size as u64 + 20 >= size {
+            // compression made it worse. Write raw data
+            header.write_all(&raw_header)?;
+            return Ok(());
+        }
+        self.output.write_all(&encoded_data[..compress_size])?;
+
+        pack_info.add_stream(compress_size as u64, compress_crc);
+
+        let mut unpack_info = UnpackInfo::default();
+        let mut sizes = vec![size];
+        sizes.extend(more_sizes.iter().map(|s| s.get() as u64));
+        unpack_info.add(methods, sizes, crc);
+
+        header.write_u8(K_ENCODED_HEADER)?;
+
+        pack_info.write_to(header)?;
+        unpack_info.write_to(header)?;
+        unpack_info.write_substreams(header)?;
+
+        header.write_u8(K_END)?;
+
+        Ok(())
+    }
+
     fn write_streams_info<H: Write>(&mut self, header: &mut H) -> std::io::Result<()> {
         if self.pack_info.len() > 0 {
             self.pack_info.write_to(header)?;
             self.unpack_info.write_to(header)?;
         }
-        self.write_sub_streams_info(header)?;
-        header.write_u8(K_END)?;
-        Ok(())
-    }
-
-    fn write_sub_streams_info<H: Write>(&self, header: &mut H) -> std::io::Result<()> {
-        header.write_u8(K_SUB_STREAMS_INFO)?;
         self.unpack_info.write_substreams(header)?;
+
         header.write_u8(K_END)?;
         Ok(())
     }
