@@ -81,7 +81,7 @@ sevenz_rust::compress_to_path_encrypted("examples/data/sample", "examples/data/s
 
 ```
 [dependencies]
-sevenz-rust={version="0.3", features=["compress","aes256"]}
+sevenz-rust={version="0.4", features=["compress","aes256"]}
 ```
 
 #### Solid compression
