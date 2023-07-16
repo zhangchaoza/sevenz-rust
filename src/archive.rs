@@ -128,19 +128,19 @@ impl SevenZArchiveEntry {
             if let Ok(modified) = meta.modified() {
                 if let Ok(date) = modified.try_into() {
                     entry.last_modified_date = date;
-                    entry.has_last_modified_date = entry.last_modified_date.as_u64() > 0;
+                    entry.has_last_modified_date = entry.last_modified_date.to_raw() > 0;
                 }
             }
             if let Ok(date) = meta.created() {
                 if let Ok(date) = date.try_into() {
                     entry.creation_date = date;
-                    entry.has_creation_date = entry.creation_date.as_u64() > 0;
+                    entry.has_creation_date = entry.creation_date.to_raw() > 0;
                 }
             }
             if let Ok(date) = meta.accessed() {
                 if let Ok(date) = date.try_into() {
                     entry.access_date = date;
-                    entry.has_access_date = entry.access_date.as_u64() > 0;
+                    entry.has_access_date = entry.access_date.to_raw() > 0;
                 }
             }
         }

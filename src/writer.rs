@@ -132,7 +132,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
                 entry.last_modified_date = modified
                     .try_into()
                     .expect("last modified date should be in the range of file time");
-                entry.has_last_modified_date = entry.last_modified_date.as_u64() > 0;
+                entry.has_last_modified_date = entry.last_modified_date.to_raw() > 0;
             }
         }
         entry

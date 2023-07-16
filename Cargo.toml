@@ -28,7 +28,7 @@ cbc = {version = "0.1", optional = true}
 crc = "3.0.0"
 filetime_creation = "0.1"
 lzma-rust = {path = "lzma-rust", default-features = false, version = "0.1.4"}
-nt-time = "0.4.1"
+nt-time = "0.5.0"
 rand = {version = "0.8", optional = true}
 sha2 = {version = "^0.9"}
 zstd = {version = "0.12.3", optional = true}
