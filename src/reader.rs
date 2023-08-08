@@ -1030,6 +1030,15 @@ impl<R: Read + Seek> SevenZReader<R> {
     }
 
     #[inline]
+    pub fn from_archive(archive: Archive, source: R, password: Password) -> Self {
+        Self {
+            source,
+            archive,
+            password: password.to_vec(),
+        }
+    }
+
+    #[inline]
     pub fn archive(&self) -> &Archive {
         &self.archive
     }
@@ -1085,37 +1094,13 @@ impl<R: Read + Seek> SevenZReader<R> {
     ) -> Result<(), Error> {
         let folder_count = self.archive.folders.len();
         for folder_index in 0..folder_count {
-            let (mut folder_reader, _size) = Self::build_decode_stack(
-                &mut self.source,
-                &self.archive,
+            let forder_dec = FolderDecoder::new(
                 folder_index,
+                &self.archive,
                 &self.password,
-            )?;
-            let start = self.archive.stream_map.folder_first_file_index[folder_index];
-            let file_count = self.archive.folders[folder_index].num_unpack_sub_streams;
-
-            for file_index in start..(file_count + start) {
-                let file = &self.archive.files[file_index];
-                if file.has_stream && file.size > 0 {
-                    let mut decoder: Box<dyn Read> =
-                        Box::new(BoundedReader::new(&mut folder_reader, file.size as usize));
-                    if file.has_crc {
-                        decoder = Box::new(Crc32VerifyingReader::new(
-                            decoder,
-                            file.size as usize,
-                            file.crc,
-                        ));
-                    }
-                    if !each(file, &mut decoder)? {
-                        return Ok(());
-                    }
-                } else {
-                    let empty_reader: &mut dyn Read = &mut ([0u8; 0].as_slice());
-                    if !each(file, empty_reader)? {
-                        return Ok(());
-                    }
-                }
-            }
+                &mut self.source,
+            );
+            forder_dec.for_each_entries(&mut each)?;
         }
         // decode empty files
         for file_index in 0..self.archive.files.len() {
@@ -1132,7 +1117,65 @@ impl<R: Read + Seek> SevenZReader<R> {
     }
 }
 
-pub struct _FolderDecoder<'a, R: Read + Seek> {
+pub struct FolderDecoder<'a, R: Read + Seek> {
     folder_index: usize,
-    reader: &'a mut SevenZReader<R>,
+    archive: &'a Archive,
+    password: &'a [u8],
+    source: &'a mut R,
+}
+
+impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
+    pub fn new(
+        folder_index: usize,
+        archive: &'a Archive,
+        password: &'a [u8],
+        source: &'a mut R,
+    ) -> Self {
+        Self {
+            folder_index,
+            archive,
+            password,
+            source,
+        }
+    }
+
+    pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
+        self,
+        each: &mut F,
+    ) -> Result<bool, Error> {
+        let Self {
+            folder_index,
+            archive,
+            password,
+            source,
+        } = self;
+        let (mut folder_reader, _size) =
+            SevenZReader::build_decode_stack(source, archive, folder_index, password)?;
+        let start = archive.stream_map.folder_first_file_index[folder_index];
+        let file_count = archive.folders[folder_index].num_unpack_sub_streams;
+
+        for file_index in start..(file_count + start) {
+            let file = &archive.files[file_index];
+            if file.has_stream && file.size > 0 {
+                let mut decoder: Box<dyn Read> =
+                    Box::new(BoundedReader::new(&mut folder_reader, file.size as usize));
+                if file.has_crc {
+                    decoder = Box::new(Crc32VerifyingReader::new(
+                        decoder,
+                        file.size as usize,
+                        file.crc,
+                    ));
+                }
+                if !each(file, &mut decoder)? {
+                    return Ok(false);
+                }
+            } else {
+                let empty_reader: &mut dyn Read = &mut ([0u8; 0].as_slice());
+                if !each(file, empty_reader)? {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
+    }
 }

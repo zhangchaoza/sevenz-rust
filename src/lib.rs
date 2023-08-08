@@ -35,5 +35,6 @@ pub use lzma_rust as lzma;
 pub use nt_time;
 pub use password::Password;
 pub use reader::SevenZReader;
+pub use reader::FolderDecoder;
 #[cfg(feature = "compress")]
 pub use writer::*;

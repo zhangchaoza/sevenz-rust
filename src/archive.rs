@@ -34,7 +34,7 @@ pub(crate) const K_ENCODED_HEADER: u8 = 0x17;
 pub(crate) const K_START_POS: u8 = 0x18;
 pub(crate) const K_DUMMY: u8 = 0x19;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Archive {
     /// Offset from beginning of file + SIGNATURE_HEADER_SIZE to packed streams.
     pub pack_pos: u64,
@@ -47,7 +47,7 @@ pub struct Archive {
     pub stream_map: StreamMap,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SubStreamsInfo {
     pub unpack_sizes: Vec<u64>,
     pub has_crc: BitSet,
@@ -268,7 +268,7 @@ impl SevenZMethod {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct StreamMap {
     pub folder_first_pack_stream_index: Vec<usize>,
     pub pack_stream_offsets: Vec<u64>,
