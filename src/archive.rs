@@ -78,6 +78,10 @@ pub struct SevenZArchiveEntry {
 }
 
 impl SevenZArchiveEntry {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     pub fn name(&self) -> &str {
         self.name.as_ref()
     }
