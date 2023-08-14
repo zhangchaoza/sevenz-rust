@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use sevenz_rust::{Archive, FolderDecoder, Password};
 
@@ -13,6 +13,8 @@ fn main() {
         println!("folder count less than 1, use single thread");
         //TODO use single thread
     }
+    let archive = Arc::new(archive);
+    let password = Arc::new(password);
 
     let mut threads = Vec::new();
     for folder_index in 0..folder_count {

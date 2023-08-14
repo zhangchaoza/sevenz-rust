@@ -1139,6 +1139,16 @@ impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
         }
     }
 
+    pub fn entries(&self) -> &[SevenZArchiveEntry] {
+        let start = self.archive.stream_map.folder_first_file_index[self.folder_index];
+        let file_count = self.archive.folders[self.folder_index].num_unpack_sub_streams;
+        &self.archive.files[start..(file_count + start)]
+    }
+
+    pub fn entry_count(&self) -> usize {
+        self.archive.folders[self.folder_index].num_unpack_sub_streams
+    }
+
     pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
         self,
         each: &mut F,
