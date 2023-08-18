@@ -1,11 +1,11 @@
 use std::{
-    fs::{read, read_to_string},
+    fs::{read, read_to_string, File},
     path::PathBuf,
 };
 
 use tempfile::tempdir;
 
-use sevenz_rust::decompress_file;
+use sevenz_rust::{decompress_file, Archive, FolderDecoder};
 
 #[test]
 fn decompress_single_empty_file_unencoded_header() {
@@ -135,4 +135,21 @@ fn decompress_bzip2_file() {
 
     assert_eq!(read_to_string(hello_path).unwrap(), "world\n");
     assert_eq!(read_to_string(foo_path).unwrap(), "bar\n");
+}
+
+#[test]
+fn test_bcj2() {
+    let mut file = File::open("tests/resources/7za433_7zip_lzma2_bcj2.7z").unwrap();
+    let file_len = file.metadata().unwrap().len();
+    let archive = Archive::read(&mut file, file_len, &[]).unwrap();
+    for i in 0..archive.folders.len() {
+        let fd = FolderDecoder::new(i, &archive, &[], &mut file);
+        println!("entry_count:{}", fd.entry_count());
+        fd.for_each_entries(&mut |entry, reader| {
+            println!("{}=>{:?}", entry.has_stream, entry.name());
+            std::io::copy(reader, &mut std::io::sink())?;
+            Ok(true)
+        })
+        .unwrap();
+    }
 }

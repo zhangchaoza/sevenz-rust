@@ -6,9 +6,12 @@ use std::{
 use bit_set::BitSet;
 use crc::Crc;
 
-use crate::{archive::*, error::Error, folder::*, password::Password};
+use crate::{archive::*, decoders::add_decoder, error::Error, folder::*, password::Password};
 pub(crate) const CRC32: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
 const MAX_MEM_LIMIT_KB: usize = usize::MAX / 1024;
+
+pub(crate) trait SeedRead: Read + Seek {}
+
 pub struct BoundedReader<R: Read> {
     inner: R,
     remain: usize,
@@ -48,7 +51,61 @@ impl<R: Read> Read for BoundedReader<R> {
     }
 }
 
-struct Crc32VerifyingReader<R: Read> {
+#[derive(Debug, Default, Clone)]
+pub struct SeekableBoundedReader<R: Read + Seek> {
+    inner: R,
+    cur: u64,
+    bounds: (u64, u64),
+}
+
+impl<R: Read + Seek> SeedRead for SeekableBoundedReader<R> {}
+
+impl<R: Read + Seek> Seek for SeekableBoundedReader<R> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let new_pos = match pos {
+            SeekFrom::Start(pos) => self.bounds.0 as i64 + pos as i64,
+            SeekFrom::End(pos) => self.bounds.1 as i64 + pos,
+            SeekFrom::Current(pos) => self.cur as i64 + pos,
+        };
+        if new_pos < 0 {
+            return Err(std::io::Error::new(ErrorKind::Other, "SeekBeforeStart"));
+        }
+        self.cur = new_pos as u64;
+        self.inner.seek(SeekFrom::Start(self.cur))
+    }
+}
+
+impl<R: Read + Seek> Read for SeekableBoundedReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.cur >= self.bounds.1 {
+            return Ok(0);
+        }
+        if self.stream_position()? != self.cur {
+            println!("seeking to {}", self.cur);
+            self.inner.seek(SeekFrom::Start(self.cur))?;
+        }
+        let buf2 = if buf.len() < (self.bounds.1 - self.cur) as usize {
+            buf
+        } else {
+            &mut buf[..(self.bounds.1 - self.cur) as usize]
+        };
+        let size = self.inner.read(buf2)?;
+        self.cur += size as u64;
+        Ok(size)
+    }
+}
+
+impl<R: Read + Seek> SeekableBoundedReader<R> {
+    pub fn new(inner: R, bounds: (u64, u64)) -> Self {
+        Self {
+            inner,
+            cur: bounds.0,
+            bounds,
+        }
+    }
+}
+
+struct Crc32VerifyingReader<R> {
     inner: R,
     crc_digest: crc::Digest<'static, u32>,
     expected_value: u64,
@@ -307,7 +364,8 @@ impl Archive {
         let coder_len = folder.coders.len();
         let unpack_size = folder.get_unpack_size() as usize;
         let pack_size = archive.pack_sizes[first_pack_stream_index] as usize;
-        let input_reader = BoundedReader::new(reader, pack_size);
+        let input_reader =
+            SeekableBoundedReader::new(reader, (folder_offset, folder_offset + pack_size as u64));
         let mut decoder: Box<dyn Read> = Box::new(input_reader);
         let mut decoder = if coder_len > 0 {
             for (index, coder) in folder.ordered_coder_iter() {
@@ -1049,6 +1107,10 @@ impl<R: Read + Seek> SevenZReader<R> {
         folder_index: usize,
         password: &[u8],
     ) -> Result<(Box<dyn Read + 'r>, usize), Error> {
+        let folder = &archive.folders[folder_index];
+        if folder.total_input_streams > folder.total_output_streams {
+            return Self::build_decode_stack2(source, archive, folder_index, password);
+        }
         let first_pack_stream_index =
             archive.stream_map.folder_first_pack_stream_index[folder_index];
         let folder_offset = SIGNATURE_HEADER_SIZE
@@ -1064,7 +1126,7 @@ impl<R: Read + Seek> SevenZReader<R> {
         let folder = &archive.folders[folder_index];
         for (index, coder) in folder.ordered_coder_iter() {
             if coder.num_in_streams != 1 || coder.num_out_streams != 1 {
-                return Err(Error::other(
+                return Err(Error::unsupported(
                     "Multi input/output stream coders are not yet supported",
                 ));
             }
@@ -1086,6 +1148,154 @@ impl<R: Read + Seek> SevenZReader<R> {
         }
 
         Ok((decoder, pack_size))
+    }
+
+    fn build_decode_stack2<'r>(
+        source: &'r mut R,
+        archive: &'r Archive,
+        folder_index: usize,
+        password: &[u8],
+    ) -> Result<(Box<dyn Read + 'r>, usize), Error> {
+        const MAX_CODER_COUNT: usize = 32;
+        let folder = &archive.folders[folder_index];
+        if folder.coders.len() > MAX_CODER_COUNT {
+            return Err(Error::unsupported(format!(
+                "Too many coders: {}",
+                folder.coders.len()
+            )));
+        }
+
+        assert!(folder.total_input_streams > folder.total_output_streams);
+        let source = ReaderPtr::new(source);
+        let first_pack_stream_index =
+            archive.stream_map.folder_first_pack_stream_index[folder_index];
+        let start_pos = SIGNATURE_HEADER_SIZE + archive.pack_pos;
+        let offsets = &archive.stream_map.pack_stream_offsets[first_pack_stream_index..];
+
+        let mut sources = Vec::with_capacity(folder.packed_streams.len());
+        for i in 0..folder.packed_streams.len() {
+            let pack_pos = start_pos + offsets[i];
+            let pack_size = archive.pack_sizes[first_pack_stream_index + i];
+            let pack_reader =
+                SeekableBoundedReader::new(source.clone(), (pack_pos, pack_pos + pack_size));
+            sources.push(pack_reader);
+        }
+
+        let mut coder_to_stream_map = [usize::MAX; MAX_CODER_COUNT];
+
+        let mut si = 0;
+        for i in 0..folder.coders.len() {
+            coder_to_stream_map[i] = si;
+            si += folder.coders[i].num_in_streams as usize;
+        }
+
+        let main_coder_index = {
+            let mut coder_used = [false; MAX_CODER_COUNT];
+            for bp in folder.bind_pairs.iter() {
+                coder_used[bp.out_index as usize] = true;
+            }
+            let mut mci = 0;
+            for i in 0..folder.coders.len() {
+                if !coder_used[i] {
+                    mci = i;
+                    break;
+                }
+            }
+            mci
+        };
+
+        let id = folder.coders[main_coder_index].decompression_method_id();
+        if id != SevenZMethod::ID_BCJ2 {
+            return Err(Error::unsupported(format!("Unsupported method: {:?}", id)));
+        }
+
+        let num_in_streams = folder.coders[main_coder_index].num_in_streams as usize;
+        let mut inputs: Vec<Box<dyn Read>> = Vec::with_capacity(num_in_streams);
+        let start_i = coder_to_stream_map[main_coder_index];
+        for i in start_i..num_in_streams + start_i {
+            inputs.push(Self::get_in_stream(
+                folder,
+                &sources,
+                &coder_to_stream_map,
+                password,
+                i,
+            )?);
+        }
+        let mut decoder: Box<dyn Read> = Box::new(crate::bcj2::BCJ2Reader::new(
+            inputs,
+            folder.get_unpack_size(),
+        ));
+        if folder.has_crc {
+            decoder = Box::new(Crc32VerifyingReader::new(
+                decoder,
+                folder.get_unpack_size() as usize,
+                folder.crc,
+            ));
+        }
+        Ok((
+            decoder,
+            archive.pack_sizes[first_pack_stream_index] as usize,
+        ))
+    }
+
+    fn get_in_stream<'r>(
+        folder: &Folder,
+        sources: &[SeekableBoundedReader<ReaderPtr<R>>],
+        coder_to_stream_map: &[usize],
+        password: &[u8],
+
+        in_stream_index: usize,
+    ) -> Result<Box<dyn Read + 'r>, Error>
+    where
+        R: 'r,
+    {
+        let index = folder
+            .packed_streams
+            .iter()
+            .position(|&i| i == in_stream_index as u64);
+        if let Some(index) = index {
+            return Ok(Box::new(sources[index as usize].clone()));
+        }
+
+        let bp = folder
+            .find_bind_pair_for_in_stream(in_stream_index)
+            .ok_or_else(|| {
+                Error::other(format!(
+                    "Couldn't find bind pair for stream {}",
+                    in_stream_index
+                ))
+            })?;
+        let index = folder.bind_pairs[bp].out_index as usize;
+
+        Self::get_in_stream2(folder, sources, coder_to_stream_map, password, index)
+    }
+
+    fn get_in_stream2<'r>(
+        folder: &Folder,
+        sources: &[SeekableBoundedReader<ReaderPtr<R>>],
+        coder_to_stream_map: &[usize],
+        password: &[u8],
+        in_stream_index: usize,
+    ) -> Result<Box<dyn Read + 'r>, Error>
+    where
+        R: 'r,
+    {
+        let coder = &folder.coders[in_stream_index];
+        let start_index = coder_to_stream_map[in_stream_index];
+        if start_index == usize::MAX {
+            return Err(Error::other("in_stream_index out of range"));
+        }
+        let uncompressed_len = folder.unpack_sizes[in_stream_index] as usize;
+        if coder.num_in_streams == 1 {
+            let input =
+                Self::get_in_stream(folder, sources, coder_to_stream_map, password, start_index)?;
+
+            let decoder = add_decoder(input, uncompressed_len, coder, password, MAX_MEM_LIMIT_KB)?;
+            return Ok(Box::new(decoder));
+        }
+        return Err(Error::unsupported(
+            "Multi input stream coders are not yet supported",
+        ));
     }
 
     pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
@@ -1187,5 +1397,38 @@ impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
             }
         }
         Ok(true)
+    }
+}
+
+#[derive(Debug, Copy)]
+struct ReaderPtr<R> {
+    reader: *mut R,
+}
+
+impl<R> Clone for ReaderPtr<R> {
+    fn clone(&self) -> Self {
+        Self {
+            reader: self.reader,
+        }
+    }
+}
+
+impl<R> ReaderPtr<R> {
+    fn new(reader: &mut R) -> Self {
+        Self {
+            reader: reader as *mut R,
+        }
+    }
+}
+
+impl<R: Read> Read for ReaderPtr<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        unsafe { (*self.reader).read(buf) }
+    }
+}
+
+impl<R: Seek> Seek for ReaderPtr<R> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        unsafe { (*self.reader).seek(pos) }
     }
 }

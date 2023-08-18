@@ -24,7 +24,7 @@ impl<R: Read> RangeDecoder<R> {
     pub fn new_stream(mut inner: R) -> Result<Self> {
         let b = inner.read_u8()?;
         if b != 0x00 {
-            return Err(std::io::Error::new(ErrorKind::InvalidInput, ""));
+            return Err(std::io::Error::new(ErrorKind::InvalidInput, "range decoder first byte is 0"));
         }
         let code = inner.read_u32::<BigEndian>()?;
         Ok(Self {

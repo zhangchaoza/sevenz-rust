@@ -18,6 +18,7 @@ pub enum Error {
     UnsupportedCompressionMethod(String),
     MaxMemLimited { max_kb: usize, actaul_kb: usize },
     PasswordRequired,
+    Unsupported(Cow<'static, str>),
 }
 
 impl From<std::io::Error> for Error {
@@ -30,6 +31,10 @@ impl Error {
     #[inline]
     pub fn other<S: Into<Cow<'static, str>>>(s: S) -> Self {
         Self::Other(s.into())
+    }
+    #[inline]
+    pub fn unsupported<S: Into<Cow<'static, str>>>(s: S) -> Self {
+        Self::Unsupported(s.into())
     }
 
     #[inline]

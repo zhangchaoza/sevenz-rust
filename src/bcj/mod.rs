@@ -2,7 +2,6 @@ mod arm;
 mod ppc;
 mod sparc;
 mod x86;
-
 use std::io::Read;
 
 pub struct BCJFilter {

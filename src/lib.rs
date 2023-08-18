@@ -2,6 +2,7 @@
 extern crate wasm_bindgen;
 #[cfg(feature = "aes256")]
 mod aes256sha256;
+mod bcj2;
 #[cfg(feature = "aes256")]
 pub use aes256sha256::*;
 #[cfg(target_arch = "wasm32")]
