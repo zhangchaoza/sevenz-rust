@@ -24,6 +24,7 @@ Supported filters:
  - [x] BCJ ARM_THUMB
  - [x] BCJ SPARC
  - [x] DELTA
+ - [x] BJC2
 
 
 
@@ -40,7 +41,7 @@ Decompress source file "data/sample.7z" to dest path "data/sample"
 sevenz_rust::decompress_file("data/sample.7z", "data/sample").expect("complete");
 ```
 
-Decompress a encrypted 7z file
+#### Decompress a encrypted 7z file
 
 Add 'aes256' feature
 ```
@@ -52,12 +53,17 @@ sevenz-rust={version="0.2", features=["aes256"]}
 sevenz_rust::decompress_file_with_password("path/to/encrypted.7z", "path/to/output", "password".into()).expect("complete");
 ```
 
+#### Multi-thread decompress
+check [examples/mt_decompress](https://github.com/dyz1990/sevenz-rust/blob/main/examples/mt_decompress.rs)
+
+
+
 ## Compression
 Currently only support LZMA2 method.
 
 ```
 [dependencies]
-sevenz-rust={version="0.2", features=["compress"]}
+sevenz-rust={version="0.5.0", features=["compress"]}
 ```
 
 Use the helper function to create a 7z file with source path.
@@ -69,7 +75,7 @@ sevenz_rust::compress_to_path("examples/data/sample", "examples/data/sample.7z")
 require version>=0.3.0
 ```
 [dependencies]
-sevenz-rust={version="0.3", features=["compress","aes256"]}
+sevenz-rust={version="0.5", features=["compress","aes256"]}
 ```
 
 Use the helper function to create a 7z file with source path and password.
@@ -81,7 +87,7 @@ sevenz_rust::compress_to_path_encrypted("examples/data/sample", "examples/data/s
 
 ```
 [dependencies]
-sevenz-rust={version="0.4", features=["compress","aes256"]}
+sevenz-rust={version="0.5.0", features=["compress","aes256"]}
 ```
 
 #### Solid compression
@@ -117,6 +123,10 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.5.0 - 2023-0819
+- Added support for BCJ2.
+- Added multi-thread decompress example
+
 ### 0.4.3 - 2023-0616
 - Support write encoded header
 - Added `LZMAWriter`
