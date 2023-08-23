@@ -4,7 +4,7 @@ use super::*;
 
 use std::{
     io::{Read, Result},
-    ops::{Deref, DerefMut}
+    ops::{Deref, DerefMut},
 };
 
 pub struct LZMADecoder {
@@ -31,12 +31,12 @@ impl LZMADecoder {
     pub fn new(lc: u32, lp: u32, pb: u32) -> Self {
         let mut literal_decoder = LiteralDecoder::new(lc, lp);
         literal_decoder.reset();
-        let match_len_decoder =  {
+        let match_len_decoder = {
             let mut l = LengthCoder::new();
             l.reset();
             l
         };
-        let rep_len_decoder =  {
+        let rep_len_decoder = {
             let mut l = LengthCoder::new();
             l.reset();
             l
@@ -66,12 +66,12 @@ impl LZMADecoder {
             let pos_state = lz.get_pos() as u32 & self.pos_mask;
             let i = self.state.get() as usize;
             let probs = &mut self.is_match[i];
-            let bit = rc.decode_bit(probs, pos_state as _)?;
+            let bit = rc.decode_bit(&mut probs[pos_state as usize])?;
             if bit == 0 {
                 self.literal_decoder.decode(&mut self.coder, lz, rc)?;
             } else {
-                let index = self.state.get() as _;
-                let len = if rc.decode_bit(&mut self.is_rep, index)? == 0 {
+                let index = self.state.get() as usize;
+                let len = if rc.decode_bit(&mut self.is_rep[index])? == 0 {
                     self.decode_match(pos_state, rc)?
                 } else {
                     self.decode_rep_match(pos_state, rc)?
@@ -115,20 +115,20 @@ impl LZMADecoder {
         pos_state: u32,
         rc: &mut RangeDecoder<R>,
     ) -> Result<u32> {
-        let index = self.state.get() as _;
-        if rc.decode_bit(&mut self.is_rep0, index)? == 0 {
+        let index = self.state.get() as usize;
+        if rc.decode_bit(&mut self.is_rep0[index])? == 0 {
             let index: usize = self.state.get() as usize;
-            if rc.decode_bit(&mut self.is_rep0_long[index], pos_state as _)? == 0 {
+            if rc.decode_bit(&mut self.is_rep0_long[index][pos_state as usize])? == 0 {
                 self.state.update_short_rep();
                 return Ok(1);
             }
         } else {
             let tmp;
             let s = self.state.get() as usize;
-            if rc.decode_bit(&mut self.is_rep1, s)? == 0 {
+            if rc.decode_bit(&mut self.is_rep1[s])? == 0 {
                 tmp = self.reps[1];
             } else {
-                if rc.decode_bit(&mut self.is_rep2, s)? == 0 {
+                if rc.decode_bit(&mut self.is_rep2[s])? == 0 {
                     tmp = self.reps[2];
                 } else {
                     tmp = self.reps[3];
@@ -203,7 +203,7 @@ impl LiteralSubdecoder {
         let liter = coder.state.is_literal();
         if liter {
             loop {
-                let b = rc.decode_bit(&mut self.coder.probs, symbol as usize)? as u32;
+                let b = rc.decode_bit(&mut self.coder.probs[symbol as usize])? as u32;
                 symbol = (symbol << 1) | b;
                 if symbol >= 0x100 {
                     break;
@@ -218,10 +218,9 @@ impl LiteralSubdecoder {
             loop {
                 match_byte = match_byte << 1;
                 match_bit = match_byte & offset;
-                bit = rc.decode_bit(
-                    &mut self.coder.probs,
-                    (offset + match_bit + symbol) as usize,
-                )? as u32;
+                bit = rc
+                    .decode_bit(&mut self.coder.probs[(offset + match_bit + symbol) as usize])?
+                    as u32;
                 symbol = (symbol << 1) | bit;
                 offset &= (0u32.wrapping_sub(bit)) ^ !match_bit;
                 if symbol >= 0x100 {
@@ -237,13 +236,13 @@ impl LiteralSubdecoder {
 
 impl LengthCoder {
     fn decode<R: Read>(&mut self, pos_state: usize, rc: &mut RangeDecoder<R>) -> Result<i32> {
-        if rc.decode_bit(&mut self.choice, 0)? == 0 {
+        if rc.decode_bit(&mut self.choice[0])? == 0 {
             return Ok(rc
                 .decode_bit_tree(&mut self.low[pos_state])?
                 .wrapping_add(MATCH_LEN_MIN as _));
         }
 
-        if rc.decode_bit(&mut self.choice, 1)? == 0 {
+        if rc.decode_bit(&mut self.choice[1])? == 0 {
             return Ok(rc
                 .decode_bit_tree(&mut self.mid[pos_state])?
                 .wrapping_add(MATCH_LEN_MIN as _)

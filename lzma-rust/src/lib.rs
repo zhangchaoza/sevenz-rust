@@ -46,6 +46,8 @@ const BIT_MODEL_TOTAL_BITS: u32 = 11;
 const BIT_MODEL_TOTAL: u32 = 1 << BIT_MODEL_TOTAL_BITS;
 const PROB_INIT: u16 = (BIT_MODEL_TOTAL / 2) as u16;
 const MOVE_BITS: u32 = 5;
+const DIST_SPECIAL_INDEX: [usize; 10] = [0, 2, 4, 8, 12, 20, 28, 44, 60, 92];
+const DIST_SPECIAL_END: [usize; 10] = [2, 4, 8, 12, 20, 28, 44, 60, 92, 124];
 pub struct LZMACoder {
     pub(crate) pos_mask: u32,
     pub(crate) reps: [i32; REPS],
@@ -57,18 +59,7 @@ pub struct LZMACoder {
     pub(crate) is_rep2: [u16; state::STATES],
     pub(crate) is_rep0_long: [[u16; POS_STATES_MAX]; state::STATES],
     pub(crate) dist_slots: [[u16; DIST_SLOTS]; DIST_STATES],
-    pub(crate) dist_special: (
-        [u16; 2],
-        [u16; 2],
-        [u16; 4],
-        [u16; 4],
-        [u16; 8],
-        [u16; 8],
-        [u16; 16],
-        [u16; 16],
-        [u16; 32],
-        [u16; 32],
-    ),
+    dist_special: [u16; 124],
     dist_align: [u16; ALIGN_SIZE],
 }
 
@@ -99,7 +90,7 @@ impl LZMACoder {
             is_rep2: Default::default(),
             is_rep0_long: Default::default(),
             dist_slots: [[Default::default(); DIST_SLOTS]; DIST_STATES],
-            dist_special: Default::default(),
+            dist_special: [Default::default(); 124],
             dist_align: Default::default(),
         };
         c.reset();
@@ -123,33 +114,13 @@ impl LZMACoder {
         for ele in self.dist_slots.iter_mut() {
             init_probs(ele);
         }
-        init_probs(&mut self.dist_special.0);
-        init_probs(&mut self.dist_special.1);
-        init_probs(&mut self.dist_special.2);
-        init_probs(&mut self.dist_special.3);
-        init_probs(&mut self.dist_special.4);
-        init_probs(&mut self.dist_special.5);
-        init_probs(&mut self.dist_special.6);
-        init_probs(&mut self.dist_special.7);
-        init_probs(&mut self.dist_special.8);
-        init_probs(&mut self.dist_special.9);
+        init_probs(&mut self.dist_special);
         init_probs(&mut self.dist_align);
     }
 
+    #[inline(always)]
     pub fn get_dist_special(&mut self, i: usize) -> &mut [u16] {
-        let ds: [&mut [u16]; 10] = [
-            &mut self.dist_special.0,
-            &mut self.dist_special.1,
-            &mut self.dist_special.2,
-            &mut self.dist_special.3,
-            &mut self.dist_special.4,
-            &mut self.dist_special.5,
-            &mut self.dist_special.6,
-            &mut self.dist_special.7,
-            &mut self.dist_special.8,
-            &mut self.dist_special.9,
-        ];
-        ds[i]
+        &mut self.dist_special[DIST_SPECIAL_INDEX[i]..DIST_SPECIAL_END[i]]
     }
 }
 
@@ -163,7 +134,7 @@ pub(crate) struct LiteralCoder {
     literal_pos_mask: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct LiteralSubcoder {
     probs: [u16; 0x300],
 }
