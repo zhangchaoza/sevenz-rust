@@ -94,7 +94,7 @@ fn compress_path<W: Write + Seek, P: AsRef<Path>>(
     let entry = SevenZArchiveEntry::from_path(src.as_ref(), entry_name);
     let path = src.as_ref();
     if path.is_dir() {
-        // z.push_archive_entry::<&[u8]>(entry, None)?;
+        z.push_archive_entry::<&[u8]>(entry, None)?;
         for dir in path
             .read_dir()
             .map_err(|e| Error::io_msg(e, "error read dir"))?
