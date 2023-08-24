@@ -120,7 +120,16 @@ impl SevenZArchiveEntry {
 
     pub fn from_path(path: impl AsRef<std::path::Path>, entry_name: String) -> SevenZArchiveEntry {
         let path = path.as_ref();
-
+        #[cfg(target_os = "windows")]
+        let entry_name = {
+            let mut name_bytes = entry_name.into_bytes();
+            for b in &mut name_bytes {
+                if *b == b'\\' {
+                    *b = b'/';
+                }
+            }
+            String::from_utf8(name_bytes).unwrap()
+        };
         let mut entry = SevenZArchiveEntry {
             name: entry_name,
             has_stream: path.is_file(),
