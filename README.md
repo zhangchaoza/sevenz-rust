@@ -123,6 +123,12 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.5.2 - 2023-0824
+Fixed file separator issue on windows system #35
+
+### 0.5.1 - 2023-0823
+Sub crate `lzma-rust` code optimization
+
 ### 0.5.0 - 2023-0819
 - Added support for BCJ2.
 - Added multi-thread decompress example
