@@ -2,7 +2,7 @@ use super::{
     encoder_fast::FashEncoderMode,
     encoder_normal::NormalEncoderMode,
     lz::{LZEncoder, MFType},
-    range_codec::{RangeEncoder, RangeEncoderBuffer},
+    range_enc::{RangeEncoder, RangeEncoderBuffer},
     *,
 };
 use std::{

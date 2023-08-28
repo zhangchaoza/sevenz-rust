@@ -1,5 +1,7 @@
+use crate::range_dec::RangeSource;
+
 use super::lz::LZDecoder;
-use super::range_codec::RangeDecoder;
+use super::range_dec::RangeDecoder;
 use super::*;
 
 use std::{
@@ -60,7 +62,7 @@ impl LZMADecoder {
         self.reps[0] == -1
     }
 
-    pub fn decode<R: Read>(&mut self, lz: &mut LZDecoder, rc: &mut RangeDecoder<R>) -> Result<()> {
+    pub fn decode<R: RangeSource>(&mut self, lz: &mut LZDecoder, rc: &mut RangeDecoder<R>) -> Result<()> {
         lz.repeat_pending()?;
         while lz.has_space() {
             let pos_state = lz.get_pos() as u32 & self.pos_mask;
@@ -83,7 +85,7 @@ impl LZMADecoder {
         Ok(())
     }
 
-    fn decode_match<R: Read>(&mut self, pos_state: u32, rc: &mut RangeDecoder<R>) -> Result<u32> {
+    fn decode_match<R: RangeSource>(&mut self, pos_state: u32, rc: &mut RangeDecoder<R>) -> Result<u32> {
         self.state.update_match();
         self.reps[3] = self.reps[2];
         self.reps[2] = self.reps[1];
@@ -110,7 +112,7 @@ impl LZMADecoder {
         Ok(len as _)
     }
 
-    fn decode_rep_match<R: Read>(
+    fn decode_rep_match<R: RangeSource>(
         &mut self,
         pos_state: u32,
         rc: &mut RangeDecoder<R>,
@@ -168,7 +170,7 @@ impl LiteralDecoder {
         }
     }
 
-    fn decode<R: Read>(
+    fn decode<R: RangeSource>(
         &mut self,
         coder: &mut LZMACoder,
         lz: &mut LZDecoder,
@@ -193,7 +195,7 @@ impl LiteralSubdecoder {
             coder: LiteralSubcoder::new(),
         }
     }
-    pub fn decode<R: Read>(
+    pub fn decode<R: RangeSource>(
         &mut self,
         coder: &mut LZMACoder,
         lz: &mut LZDecoder,
@@ -215,6 +217,7 @@ impl LiteralSubdecoder {
             let mut offset = 0x100;
             let mut match_bit;
             let mut bit;
+
             loop {
                 match_byte = match_byte << 1;
                 match_bit = match_byte & offset;
@@ -235,7 +238,7 @@ impl LiteralSubdecoder {
 }
 
 impl LengthCoder {
-    fn decode<R: Read>(&mut self, pos_state: usize, rc: &mut RangeDecoder<R>) -> Result<i32> {
+    fn decode<R: RangeSource>(&mut self, pos_state: usize, rc: &mut RangeDecoder<R>) -> Result<i32> {
         if rc.decode_bit(&mut self.choice[0])? == 0 {
             return Ok(rc
                 .decode_bit_tree(&mut self.low[pos_state])?

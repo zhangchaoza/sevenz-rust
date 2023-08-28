@@ -1,5 +1,5 @@
 mod bcj2_decode;
-use std::io::{Read, Seek};
+use std::io::Read;
 
 use bcj2_decode::*;
 const BUF_SIZE: usize = 1 << 18;
@@ -141,8 +141,7 @@ impl<R: Read> Read for BCJ2Reader<R> {
                 }
                 total_read -= extra_size;
             }
-            self.decoder.lims[self.decoder.state] =
-                total_read + self.decoder.state * BUF_SIZE;
+            self.decoder.lims[self.decoder.state] = total_read + self.decoder.state * BUF_SIZE;
         }
 
         if self.uncompressed_size == 0 {

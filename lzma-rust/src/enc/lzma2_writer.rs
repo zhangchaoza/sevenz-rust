@@ -8,7 +8,7 @@ use super::encoder::LZMAEncoderModes;
 use super::{
     encoder::{EncodeMode, LZMAEncoder},
     lz::MFType,
-    range_codec::{RangeEncoder, RangeEncoderBuffer},
+    range_enc::{RangeEncoder, RangeEncoderBuffer},
 };
 
 #[derive(Debug, Clone)]

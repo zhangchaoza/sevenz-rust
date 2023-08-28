@@ -2,7 +2,7 @@ use std::io::Write;
 
 use byteorder::WriteBytesExt;
 
-use crate::{range_codec::RangeEncoder, CountingWriter, LZMA2Options};
+use super::{range_enc::RangeEncoder, CountingWriter, LZMA2Options};
 
 use super::encoder::{LZMAEncoder, LZMAEncoderModes};
 /// Compresses into the legacy .lzma file format or into a raw LZMA stream

@@ -4,7 +4,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use super::decoder::LZMADecoder;
 use super::lz::LZDecoder;
-use super::range_codec::RangeDecoder;
+use super::range_dec::RangeDecoder;
 use super::*;
 
 pub fn get_memery_usage_by_props(dict_size: u32, props_byte: u8) -> Result<u32> {

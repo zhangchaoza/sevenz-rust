@@ -2,7 +2,7 @@ mod decoder;
 mod lz;
 mod lzma2_reader;
 mod lzma_reader;
-mod range_codec;
+mod range_dec;
 mod state;
 
 pub use lzma2_reader::get_memery_usage as lzma2_get_memery_usage;
@@ -141,12 +141,12 @@ pub(crate) struct LiteralSubcoder {
 
 impl LiteralSubcoder {
     pub fn new() -> Self {
-        let probs = [0u16; 0x300];
+        let probs = [PROB_INIT; 0x300];
         // init_probs(&mut probs);
         Self { probs }
     }
     pub fn reset(&mut self) {
-        init_probs(&mut self.probs);
+        self.probs = [PROB_INIT; 0x300];
     }
 }
 

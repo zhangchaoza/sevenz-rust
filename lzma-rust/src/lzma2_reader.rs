@@ -1,7 +1,7 @@
 use super::{
     decoder::LZMADecoder,
     lz::LZDecoder,
-    range_codec::{RangeDecoder, RangeDecoderBuffer},
+    range_dec::{RangeDecoder, RangeDecoderBuffer},
 };
 use byteorder::{self, BigEndian, ReadBytesExt};
 use std::io::{ErrorKind, Read, Result};
