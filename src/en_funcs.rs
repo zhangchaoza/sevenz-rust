@@ -127,13 +127,8 @@ impl<W: Write + Seek> SevenZWriter<W> {
         path: impl AsRef<Path>,
         filter: impl Fn(&Path) -> bool,
     ) -> Result<&mut Self, crate::Error> {
-        let (entries, reader) = collect_entries_and_reader(&path, filter).map_err(|e| {
-            crate::Error::io_msg(
-                e,
-                format!("Failed to collect entries from path:{:?}", path.as_ref()),
-            )
-        })?;
-        self.push_archive_entries(entries, reader)
+        encode_path(&path, self, filter)?;
+        Ok(self)
     }
 }
 
@@ -160,26 +155,49 @@ fn collect_file_paths(
     Ok(())
 }
 
-pub fn collect_entries_and_reader(
+const MAX_BLOCK_SIZE: u64 = 4 * 102 * 1024 * 1024; //4G
+fn encode_path<W: Write + Seek>(
     src: impl AsRef<Path>,
+    zip: &mut SevenZWriter<W>,
     filter: impl Fn(&Path) -> bool,
-) -> std::io::Result<(Vec<SevenZArchiveEntry>, SeqReader<SourceReader<File>>)> {
+) -> Result<(), crate::Error> {
     let mut entries = Vec::new();
     let mut paths = Vec::new();
-    collect_file_paths(&src, &mut paths, &filter)?;
-    for ele in paths.iter() {
+    collect_file_paths(&src, &mut paths, &filter).map_err(|e| {
+        crate::Error::io_msg(
+            e,
+            format!("Failed to collect entries from path:{:?}", src.as_ref()),
+        )
+    })?;
+    let mut files = Vec::new();
+    let mut file_size = 0;
+    for ele in paths.into_iter() {
+        let size = ele.metadata()?.len();
         let name = ele
             .strip_prefix(&src)
             .unwrap()
             .to_string_lossy()
             .to_string();
-
-        entries.push(SevenZArchiveEntry::from_path(ele, name))
+        if size >= MAX_BLOCK_SIZE {
+            zip.push_archive_entry(
+                SevenZArchiveEntry::from_path(ele.as_path(), name),
+                Some(File::open(ele.as_path()).map_err(|e| crate::Error::io(e))?),
+            )?;
+            continue;
+        }
+        if file_size + size >= MAX_BLOCK_SIZE {
+            zip.push_archive_entries(entries, SeqReader::new(files))?;
+            entries = Vec::new();
+            files = Vec::new();
+            file_size = 0;
+        }
+        file_size += size;
+        entries.push(SevenZArchiveEntry::from_path(ele.as_path(), name));
+        files.push(LazyFileReader::new(ele).into());
     }
-    let files: Vec<SourceReader<_>> = paths
-        .iter()
-        .map(|p| File::open(p).unwrap().into())
-        .collect();
+    if !entries.is_empty() {
+        zip.push_archive_entries(entries, SeqReader::new(files))?;
+    }
 
-    Ok((entries, SeqReader::new(files)))
+    Ok(())
 }

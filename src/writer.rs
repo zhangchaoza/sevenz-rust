@@ -14,7 +14,7 @@ use std::{
     sync::Arc,
 };
 
-pub use self::seq_reader::{SeqReader, SourceReader};
+pub use self::seq_reader::*;
 use self::{pack_info::PackInfo, unpack_info::UnpackInfo};
 
 macro_rules! write_times {

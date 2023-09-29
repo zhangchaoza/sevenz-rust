@@ -9,7 +9,7 @@ fn compress_multi_files_solid() {
     std::fs::create_dir(&folder).unwrap();
     let mut files = Vec::with_capacity(100);
     let mut contents = Vec::with_capacity(100);
-    for i in 1..=100 {
+    for i in 1..=10000 {
         let name = format!("file{}.txt", i);
         let content = format!("file{} with content", i);
         std::fs::write(folder.join(&name), &content).unwrap();
