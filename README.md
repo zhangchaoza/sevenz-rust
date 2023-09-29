@@ -123,6 +123,10 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.5.3
+Fixed 'Too many open files'
+Reduce unnecessary public items #37
+
 ### 0.5.2 - 2023-0824
 Fixed file separator issue on windows system #35
 
