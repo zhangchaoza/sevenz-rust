@@ -4,8 +4,8 @@ use bit_set::BitSet;
 use nt_time::FileTime;
 use std::{any::Any, collections::LinkedList, sync::Arc, time::SystemTime};
 
-pub const SIGNATURE_HEADER_SIZE: u64 = 32;
-pub const SEVEN_Z_SIGNATURE: &[u8] = &[b'7', b'z', 0xBC, 0xAF, 0x27, 0x1C];
+pub(crate) const SIGNATURE_HEADER_SIZE: u64 = 32;
+pub(crate) const SEVEN_Z_SIGNATURE: &[u8] = &[b'7', b'z', 0xBC, 0xAF, 0x27, 0x1C];
 
 pub(crate) const K_END: u8 = 0x00;
 pub(crate) const K_HEADER: u8 = 0x01;
@@ -288,7 +288,7 @@ pub struct StreamMap {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct StartHeader {
+pub(crate) struct StartHeader {
     pub(crate) next_header_offset: u64,
     pub(crate) next_header_size: u64,
     pub(crate) next_header_crc: u64,
