@@ -14,4 +14,4 @@ default = ["encoder"]
 encoder = []
 
 [dependencies]
-byteorder = "1.4"
+byteorder = "1.5"

@@ -25,12 +25,12 @@ jobs:
             name: windows_x86_64
             target: x86_64-pc-windows-msvc
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install rust version
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: stable
         target: ${{matrix.target}}
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run tests
       run: cargo test --verbose --release --all-features
