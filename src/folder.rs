@@ -16,22 +16,12 @@ pub struct Folder {
 impl Folder {
     pub fn find_bind_pair_for_in_stream(&self, index: usize) -> Option<usize> {
         let index = index as u64;
-        for i in 0..self.bind_pairs.len() {
-            if self.bind_pairs[i].in_index == index {
-                return Some(i);
-            }
-        }
-        return None;
+        (0..self.bind_pairs.len()).find(|&i| self.bind_pairs[i].in_index == index)
     }
 
     pub fn find_bind_pair_for_out_stream(&self, index: usize) -> Option<usize> {
         let index = index as u64;
-        for i in 0..self.bind_pairs.len() {
-            if self.bind_pairs[i].out_index == index {
-                return Some(i);
-            }
-        }
-        return None;
+        (0..self.bind_pairs.len()).find(|&i| self.bind_pairs[i].out_index == index)
     }
 
     pub fn get_unpack_size(&self) -> u64 {
@@ -43,7 +33,7 @@ impl Folder {
                 return self.unpack_sizes[i];
             }
         }
-        return 0;
+        0
     }
 
     pub fn get_unpack_size_for_coder(&self, coder: &Coder) -> u64 {

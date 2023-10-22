@@ -1,3 +1,7 @@
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::needless_range_loop)]
+
 #[cfg(target_arch = "wasm32")]
 extern crate wasm_bindgen;
 #[cfg(feature = "aes256")]
@@ -35,7 +39,7 @@ pub use error::Error;
 pub use lzma_rust as lzma;
 pub use nt_time;
 pub use password::Password;
-pub use reader::SevenZReader;
 pub use reader::FolderDecoder;
+pub use reader::SevenZReader;
 #[cfg(feature = "compress")]
 pub use writer::*;

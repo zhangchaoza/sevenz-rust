@@ -168,7 +168,7 @@ impl Archive {
             });
         }
 
-        let start_header_crc = 0xffffffff & read_u32(reader)?;
+        let start_header_crc = read_u32(reader)?;
 
         let header_valid = if start_header_crc == 0 {
             let current_position = reader.stream_position().map_err(Error::io)?;
@@ -253,7 +253,7 @@ impl Archive {
         reader_len: u64,
         password: &[u8],
     ) -> Result<Self, Error> {
-        let search_limit = 1024 * 1024 * 1;
+        let search_limit = 1024 * 1024;
         let prev_data_size = reader.stream_position().map_err(Error::io)? + 20;
         let size = reader_len;
         let min_pos = if reader.stream_position().map_err(Error::io)? + search_limit > size {
@@ -277,7 +277,7 @@ impl Archive {
                 };
                 let result = Self::init_archive(reader, start_header, password, false)?;
 
-                if result.files.len() > 0 {
+                if !result.files.is_empty() {
                     return Ok(result);
                 }
             }
@@ -310,10 +310,8 @@ impl Archive {
 
         let mut buf = vec![0; next_header_size_int];
         reader.read_exact(&mut buf).map_err(Error::io)?;
-        if verify_crc {
-            if crc32_cksum(&buf) as u64 != start_header.next_header_crc {
-                return Err(Error::NextHeaderCrcMismatch);
-            }
+        if verify_crc && crc32_cksum(&buf) as u64 != start_header.next_header_crc {
+            return Err(Error::NextHeaderCrcMismatch);
         }
 
         let mut archive = Archive::default();
@@ -353,7 +351,7 @@ impl Archive {
             .first()
             .ok_or(Error::other("no folders, can't read encoded header"))?;
         let first_pack_stream_index = 0;
-        let folder_offset = SIGNATURE_HEADER_SIZE + archive.pack_pos + 0;
+        let folder_offset = SIGNATURE_HEADER_SIZE + archive.pack_pos;
         if archive.pack_sizes.is_empty() {
             return Err(Error::other("no packed streams, can't read encoded header"));
         }
@@ -467,10 +465,10 @@ impl Archive {
                     let size = assert_usize(size, "file names length")?;
                     // let mut names = vec![0u8; size - 1];
                     // header.read_exact(&mut names).map_err(Error::io)?;
-                    let mut names_reader = NamesReader::new(header, size - 1);
+                    let names_reader = NamesReader::new(header, size - 1);
 
                     let mut next_file = 0;
-                    while let Some(s) = names_reader.next() {
+                    for s in names_reader {
                         files[next_file].name = s?;
                         next_file += 1;
                     }
@@ -856,7 +854,7 @@ impl Archive {
             coder.id_size = id_size as usize;
 
             header
-                .read(&mut coder.decompression_method_id_mut())
+                .read(coder.decompression_method_id_mut())
                 .map_err(Error::io)?;
             if is_simple {
                 coder.num_in_streams = 1;
@@ -875,7 +873,7 @@ impl Archive {
             }
             coders.push(coder);
             // would need to keep looping as above:
-            while more_alternative_methods {
+            if more_alternative_methods {
                 return Err(Error::other("Alternative methods are unsupported, please report. The reference implementation doesn't support them either."));
             }
         }
@@ -925,7 +923,7 @@ impl Archive {
         }
         folder.packed_streams = packed_streams;
 
-        return Ok(folder);
+        Ok(folder)
     }
 }
 
@@ -957,7 +955,7 @@ fn read_u64le<R: Read>(reader: &mut R) -> Result<u64, Error> {
 
 fn read_u64<R: Read>(reader: &mut R) -> Result<u64, Error> {
     let first = read_u8(reader)? as u64;
-    let mut mask = 0x80 as u64;
+    let mut mask = 0x80_u64;
     let mut value = 0;
     for i in 0..8 {
         if (first & mask) == 0 {
@@ -1009,7 +1007,7 @@ fn read_bits<R: Read>(header: &mut R, size: usize) -> Result<BitSet, Error> {
         if (cache & mask) != 0 {
             bits.insert(i);
         }
-        mask = mask >> 1;
+        mask >>= 1;
     }
     Ok(bits)
 }
@@ -1254,7 +1252,7 @@ impl<R: Read + Seek> SevenZReader<R> {
             .iter()
             .position(|&i| i == in_stream_index as u64);
         if let Some(index) = index {
-            return Ok(Box::new(sources[index as usize].clone()));
+            return Ok(Box::new(sources[index].clone()));
         }
 
         let bp = folder
@@ -1293,9 +1291,9 @@ impl<R: Read + Seek> SevenZReader<R> {
             let decoder = add_decoder(input, uncompressed_len, coder, password, MAX_MEM_LIMIT_KB)?;
             return Ok(Box::new(decoder));
         }
-        return Err(Error::unsupported(
+        Err(Error::unsupported(
             "Multi input stream coders are not yet supported",
-        ));
+        ))
     }
 
     pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(

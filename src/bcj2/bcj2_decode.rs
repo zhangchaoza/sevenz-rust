@@ -7,9 +7,7 @@ pub const BCJ2_STREAM_CALL: usize = 1;
 pub const BCJ2_STREAM_JUMP: usize = 2;
 pub const BCJ2_STREAM_RC: usize = 3;
 
-pub const BCJ2_DEC_STATE_ORIG_0: usize = BCJ2_NUM_STREAMS + 0;
-pub const BCJ2_DEC_STATE_ORIG_1: usize = BCJ2_NUM_STREAMS + 1;
-pub const BCJ2_DEC_STATE_ORIG_2: usize = BCJ2_NUM_STREAMS + 2;
+pub const BCJ2_DEC_STATE_ORIG_0: usize = BCJ2_NUM_STREAMS;
 pub const BCJ2_DEC_STATE_ORIG_3: usize = BCJ2_NUM_STREAMS + 3;
 pub const BCJ2_DEC_STATE_ORIG: usize = BCJ2_NUM_STREAMS + 4;
 pub const BCJ2_DEC_STATE_OK: usize = BCJ2_NUM_STREAMS + 5;

@@ -65,7 +65,7 @@ fn compress_multi_files_mix_solid_and_non_solid() {
         std::fs::write(folder.join(&name), &content).unwrap();
         files.push(name.clone());
         contents.push(content);
-        
+
         let src = folder.join(&name);
         sz.push_archive_entry(
             SevenZArchiveEntry::from_path(&src, name),

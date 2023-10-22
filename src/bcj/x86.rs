@@ -10,9 +10,8 @@ impl BCJFilter {
         }
     }
 }
-const MASK_TO_ALLOWED_STATUS: &'static [bool] =
-    &[true, true, true, false, true, false, false, false];
-const MASK_TO_BIT_NUMBER: &'static [u8] = &[0, 1, 2, 2, 3, 3, 3, 3];
+const MASK_TO_ALLOWED_STATUS: &[bool] = &[true, true, true, false, true, false, false, false];
+const MASK_TO_BIT_NUMBER: &[u8] = &[0, 1, 2, 2, 3, 3, 3, 3];
 
 impl BCJFilter {
     fn x86_code(&mut self, buf: &mut [u8]) -> usize {
@@ -35,17 +34,16 @@ impl BCJFilter {
                 prev_mask = 0;
             } else {
                 prev_mask = (prev_mask << (prev_pos - 1)) & 7;
-                if prev_mask != 0 {
-                    if !MASK_TO_ALLOWED_STATUS[prev_mask as usize]
+                if prev_mask != 0
+                    && (!MASK_TO_ALLOWED_STATUS[prev_mask as usize]
                         || test_86_ms_byte(
                             buf[i + 4 - MASK_TO_BIT_NUMBER[prev_mask as usize] as usize],
-                        )
-                    {
-                        prev_pos = i as isize;
-                        prev_mask = (prev_mask << 1) | 1;
-                        i += 1;
-                        continue;
-                    }
+                        ))
+                {
+                    prev_pos = i as isize;
+                    prev_mask = (prev_mask << 1) | 1;
+                    i += 1;
+                    continue;
                 }
             }
 

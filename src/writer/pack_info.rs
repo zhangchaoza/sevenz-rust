@@ -27,12 +27,10 @@ impl PackInfo {
             header.write_u8(0)?; // not all defined
             let mut crc_define_bits = BitSet::with_capacity(self.crcs.len());
 
-            let mut i = 0;
-            for crc in self.crcs.iter().cloned() {
+            for (i, crc) in self.crcs.iter().cloned().enumerate() {
                 if crc != 0 {
                     crc_define_bits.insert(i);
                 }
-                i += 1;
             }
             let mut temp = Vec::with_capacity(self.len());
             write_bit_set(&mut temp, &crc_define_bits)?;

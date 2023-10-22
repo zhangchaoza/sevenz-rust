@@ -176,7 +176,7 @@ impl From<SevenZMethod> for SevenZMethodConfiguration {
 impl Clone for SevenZMethodConfiguration {
     fn clone(&self) -> Self {
         Self {
-            method: self.method.clone(),
+            method: self.method,
             options: None,
         }
     }

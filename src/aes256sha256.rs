@@ -36,7 +36,7 @@ impl<R: Read> Aes256Sha256Decoder<R> {
 
     fn get_more_data(&mut self) -> std::io::Result<usize> {
         if self.done {
-            return Ok(0);
+            Ok(0)
         } else {
             self.ofinish = 0;
             self.ostart = 0;
@@ -71,7 +71,7 @@ impl<R: Read> Read for Aes256Sha256Decoder<R> {
             }
         }
 
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
         let buf_len = self.ofinish - self.ostart;
@@ -91,25 +91,23 @@ impl<R: Read + Seek> Seek for Aes256Sha256Decoder<R> {
                 let n = (p as i64 - self.pos as i64).min(len as i64);
 
                 if n < 0 {
-                    return Ok(0);
+                    Ok(0)
                 } else {
-                    self.ostart = self.ostart + n as usize;
-                    return Ok(p);
+                    self.ostart += n as usize;
+                    Ok(p)
                 }
             }
-            std::io::SeekFrom::End(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
-                    "Aes256 decoder unsupport seek from end",
-                ));
-            }
+            std::io::SeekFrom::End(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "Aes256 decoder unsupport seek from end",
+            )),
             std::io::SeekFrom::Current(n) => {
                 let n = n.min(len as i64);
                 if n < 0 {
-                    return Ok(0);
+                    Ok(0)
                 } else {
-                    self.ostart = self.ostart + n as usize;
-                    return Ok(self.pos as u64 + n as u64);
+                    self.ostart += n as usize;
+                    Ok(self.pos as u64 + n as u64)
                 }
             }
         }
@@ -128,7 +126,7 @@ fn get_aes_key(properties: &[u8], password: &[u8]) -> Result<([u8; 32], [u8; 16]
     if 2 + salt_size + iv_size > properties.len() {
         return Err(crate::Error::other("Salt size + IV size too long"));
     }
-    let mut salt = vec![0u8; salt_size as usize];
+    let mut salt = vec![0u8; salt_size];
     salt.copy_from_slice(&properties[2..(2 + salt_size)]);
     let mut iv = [0u8; 16];
     iv[0..iv_size].copy_from_slice(&properties[(2 + salt_size)..(2 + salt_size + iv_size)]);
@@ -147,10 +145,10 @@ fn get_aes_key(properties: &[u8], password: &[u8]) -> Result<([u8; 32], [u8; 16]
         for _ in 0..(1u32 << num_cycles_power) {
             sha.update(&salt);
             sha.update(password);
-            sha.update(&extra);
-            for i in 0..extra.len() {
-                extra[i] = extra[i].wrapping_add(1);
-                if extra[i] != 0 {
+            sha.update(extra);
+            for item in &mut extra {
+                *item = item.wrapping_add(1);
+                if *item != 0 {
                     break;
                 }
             }
@@ -180,7 +178,7 @@ impl Cipher {
         mut output: W,
     ) -> std::io::Result<usize> {
         let mut n = 0;
-        if self.buf.len() > 0 {
+        if !self.buf.is_empty() {
             assert!(self.buf.len() < 16);
             let end = 16 - self.buf.len();
             self.buf.extend_from_slice(&data[..end]);
@@ -289,23 +287,23 @@ mod enc {
 
     impl<W: Write> Write for Aes256Sha256Encoder<W> {
         fn write(&mut self, mut buf: &[u8]) -> std::io::Result<usize> {
-            if self.done && buf.len() > 0 {
+            if self.done && !buf.is_empty() {
                 return Ok(0);
             }
-            if buf.len() == 0 {
+            if buf.is_empty() {
                 self.done = true;
                 self.flush()?;
                 return Ok(0);
             }
             let len = buf.len();
-            if self.buffer.len() > 0 {
+            if !self.buffer.is_empty() {
                 assert!(self.buffer.len() < 16);
                 if buf.len() + self.buffer.len() >= 16 {
                     let buffer = &self.buffer[..];
                     let end = 16 - buffer.len();
 
                     let mut block = [0u8; 16];
-                    block[0..buffer.len()].copy_from_slice(&buffer);
+                    block[0..buffer.len()].copy_from_slice(buffer);
                     block[buffer.len()..16].copy_from_slice(&buf[..end]);
                     let block2 = GenericArray::from_mut_slice(&mut block);
                     self.enc.encrypt_block_mut(block2);
@@ -335,7 +333,7 @@ mod enc {
         }
 
         fn flush(&mut self) -> std::io::Result<()> {
-            if self.buffer.len() > 0 && self.done {
+            if !self.buffer.is_empty() && self.done {
                 assert!(self.buffer.len() < 16);
                 self.buffer.resize(16, 0);
                 let block = GenericArray::from_mut_slice(&mut self.buffer);

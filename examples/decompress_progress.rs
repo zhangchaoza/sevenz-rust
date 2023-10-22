@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::PathBuf, time::Instant};
+use std::{fs::File, io::Write, path::PathBuf};
 
 fn main() {
     let mut sz = sevenz_rust::SevenZReader::open("examples/data/sample.7z", "pass".into()).unwrap();
@@ -23,7 +23,10 @@ fn main() {
             }
             file.write_all(&buf[..read_size])?;
             uncompressed_size += read_size;
-            println!("progress:{:.2}%", (uncompressed_size as f64 / total_size as f64)*100f64);
+            println!(
+                "progress:{:.2}%",
+                (uncompressed_size as f64 / total_size as f64) * 100f64
+            );
         }
     })
     .unwrap();

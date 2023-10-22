@@ -47,7 +47,7 @@ pub fn add_encoder<W: Write>(
         SevenZMethod::ID_LZMA => {
             let mut def_opts = LZMA2Options::default();
             let options = get_lzma2_options(method_config.options.as_ref(), &mut def_opts);
-            let lz = LZMAWriter::new_no_header(input, options, false).map_err(|e| Error::io(e))?;
+            let lz = LZMAWriter::new_no_header(input, options, false).map_err(Error::io)?;
             Ok(Encoder::LZMA(lz))
         }
         SevenZMethod::ID_LZMA2 => {

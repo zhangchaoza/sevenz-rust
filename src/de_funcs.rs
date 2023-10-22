@@ -117,7 +117,7 @@ pub fn default_entry_extract_fn(
     if entry.is_directory() {
         let dir = dest;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir).map_err(Error::io)?;
+            std::fs::create_dir_all(dir).map_err(Error::io)?;
         }
     } else {
         let path = dest;
@@ -128,7 +128,7 @@ pub fn default_entry_extract_fn(
                 None
             }
         });
-        let file = File::create(&path)
+        let file = File::create(path)
             .map_err(|e| Error::file_open(e, path.to_string_lossy().to_string()))?;
         if entry.size() > 0 {
             let mut writer = BufWriter::new(file);

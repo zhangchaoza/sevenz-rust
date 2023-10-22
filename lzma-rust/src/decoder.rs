@@ -5,7 +5,7 @@ use super::range_dec::RangeDecoder;
 use super::*;
 
 use std::{
-    io::{Read, Result},
+    io::Result,
     ops::{Deref, DerefMut},
 };
 

@@ -65,7 +65,7 @@ impl<R: Read> Read for BCJ2Reader<R> {
         if dest_buf.len() > self.uncompressed_size as usize {
             dest_buf = &mut dest_buf[..self.uncompressed_size as usize];
         }
-        if dest_buf.len() == 0 {
+        if dest_buf.is_empty() {
             return Ok(0);
         }
         let mut result_size = 0;

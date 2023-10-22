@@ -291,7 +291,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             entry.crc = ri.crc_value() as u64;
             entry.size = ri.read_count() as u64;
             sub_stream_crcs.push(entry.crc as u32);
-            sub_stream_sizes.push(entry.size as u64);
+            sub_stream_sizes.push(entry.size);
             entry.has_crc = true;
         }
 
@@ -312,7 +312,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         );
 
         self.files.extend(entries);
-        return Ok(self);
+        Ok(self)
     }
 
     fn create_writer<'a, O: Write + 'a>(
@@ -347,7 +347,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         {
             let mut hhw = hh.as_mut_slice();
             //sig
-            hhw.write_all(&SEVEN_Z_SIGNATURE)?;
+            hhw.write_all(SEVEN_Z_SIGNATURE)?;
             //version
             hhw.write_u8(0)?;
             hhw.write_u8(2)?;
@@ -363,7 +363,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         hh[8..12].copy_from_slice(&crc32.to_le_bytes());
 
         self.output.seek(std::io::SeekFrom::Start(0))?;
-        self.output.write(&hh)?;
+        self.output.write_all(&hh)?;
         Ok(self.output)
     }
 
@@ -402,7 +402,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             let mut encoder = Self::create_writer(&methods, &mut compressed, &mut more_sizes)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             encoder.write_all(&raw_header)?;
-            encoder.write(&[])?;
+            let _ = encoder.write(&[])?;
         }
         let compress_crc = compressed.crc_value();
         let compress_size = *compressed.bytes_written;
@@ -468,17 +468,15 @@ impl<W: Write + Seek> SevenZWriter<W> {
         if has_empty {
             header.write_u8(K_EMPTY_STREAM)?;
             let mut bitset = BitSet::with_capacity(self.files.len());
-            let mut i = 0;
-            for entry in self.files.iter() {
+            for (i, entry) in self.files.iter().enumerate() {
                 if !entry.has_stream {
                     bitset.insert(i);
                 }
-                i += 1;
             }
             let mut temp: Vec<u8> = Vec::with_capacity(bitset.len() / 8 + 1);
             write_bit_set(&mut temp, &bitset)?;
             write_u64(header, temp.len() as u64)?;
-            header.write(temp.as_slice())?;
+            let _ = header.write(temp.as_slice())?;
         }
         Ok(())
     }
@@ -489,7 +487,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         for entry in self.files.iter() {
             if !entry.has_stream {
                 let is_dir = entry.is_directory();
-                has_empty = has_empty | !is_dir;
+                has_empty |= !is_dir;
                 if !is_dir {
                     bitset.insert(empty_stream_counter);
                 }
@@ -502,7 +500,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             let mut temp: Vec<u8> = Vec::with_capacity(bitset.len() / 8 + 1);
             write_bit_set(&mut temp, &bitset)?;
             write_u64(header, temp.len() as u64)?;
-            header.write(temp.as_slice())?;
+            header.write_all(&temp)?;
         }
         Ok(())
     }
@@ -514,7 +512,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
         for entry in self.files.iter() {
             if !entry.has_stream {
                 let is_anti = entry.is_anti_item();
-                has_anti = has_anti | !is_anti;
+                has_anti |= !is_anti;
                 if !is_anti {
                     bitset.insert(counter);
                 }
@@ -527,7 +525,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             let mut temp: Vec<u8> = Vec::with_capacity(bitset.len() / 8 + 1);
             write_bit_set(&mut temp, &bitset)?;
             write_u64(header, temp.len() as u64)?;
-            header.write(temp.as_slice())?;
+            let _ = header.write(temp.as_slice())?;
         }
         Ok(())
     }
@@ -580,13 +578,13 @@ pub(crate) fn write_u64<W: Write>(header: &mut W, mut value: u64) -> std::io::Re
             break;
         }
         first |= mask;
-        mask = mask >> 1;
+        mask >>= 1;
         i += 1;
     }
     header.write_u8((first & 0xff) as u8)?;
     while i > 0 {
         header.write_u8((value & 0xff) as u8)?;
-        value = value >> 8;
+        value >>= 8;
         i -= 1;
     }
     Ok(())
@@ -638,7 +636,7 @@ impl<'a, W: Write> Write for CompressWrapWriter<'a, W> {
         self.cache.resize(buf.len(), Default::default());
         let len = self.writer.write(buf)?;
         self.crc.update(&buf[..len]);
-        *self.bytes_written = *self.bytes_written + len;
+        *self.bytes_written += len;
         Ok(len)
     }
 

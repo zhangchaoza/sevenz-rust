@@ -74,7 +74,7 @@ impl UnpackInfo {
                 continue;
             }
             for i in 0..f.sub_stream_sizes.len() - 1 {
-                let size = f.sub_stream_sizes[i as usize];
+                let size = f.sub_stream_sizes[i];
                 write_u64(header, size)?;
             }
         }
@@ -85,7 +85,7 @@ impl UnpackInfo {
                 continue;
             }
             for i in 0..f.sub_stream_crcs.len() {
-                let crc = f.sub_stream_crcs[i as usize];
+                let crc = f.sub_stream_crcs[i];
                 header.write_u32::<LittleEndian>(crc)?;
             }
         }
@@ -115,7 +115,7 @@ impl FolderInfo {
             self.write_single_codec(mc, cache)?;
         }
         write_u64(header, num_coders as u64)?;
-        header.write(cache)?;
+        header.write_all(cache)?;
         for i in 0..num_coders - 1 {
             write_u64(header, i as u64 + 1)?;
             write_u64(header, i as u64)?;
@@ -132,14 +132,14 @@ impl FolderInfo {
         let mut temp = [0u8; 256];
         let props = encoders::get_options_as_properties(mc.method, mc.options.as_ref(), &mut temp);
         let mut codec_flags = id.len() as u8;
-        if props.len() > 0 {
+        if !props.is_empty() {
             codec_flags |= 0x20;
         }
         out.write_u8(codec_flags)?;
-        out.write(id)?;
-        if props.len() > 0 {
+        out.write_all(id)?;
+        if !props.is_empty() {
             out.write_u8(props.len() as u8)?;
-            out.write(props)?;
+            out.write_all(props)?;
         }
         Ok(())
     }

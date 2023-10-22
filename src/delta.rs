@@ -19,11 +19,11 @@ impl Delta {
     }
 
     pub fn decode(&mut self, buf: &mut [u8]) {
-        for i in 0..buf.len() {
+        for item in buf {
             let pos = self.pos as usize;
             let h = self.history[(self.distance.wrapping_add(pos)) & DIS_MASK];
-            buf[i] = buf[i].wrapping_add(h);
-            self.history[pos & DIS_MASK] = buf[i];
+            *item = item.wrapping_add(h);
+            self.history[pos & DIS_MASK] = *item;
             self.pos = self.pos.wrapping_sub(1);
         }
     }

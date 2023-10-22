@@ -27,7 +27,7 @@ pub struct SimpleReader<R> {
     err: Option<std::io::Error>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct State {
     filter_buf: Vec<u8>,
     pos: usize,
@@ -35,17 +35,7 @@ struct State {
     unfiltered: usize,
     end_reached: bool,
 }
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            filter_buf: Default::default(),
-            pos: Default::default(),
-            filtered: Default::default(),
-            unfiltered: Default::default(),
-            end_reached: false,
-        }
-    }
-}
+
 impl<R> SimpleReader<R> {
     fn new(inner: R, filter: BCJFilter) -> Self {
         Self {
@@ -82,14 +72,14 @@ impl<R> SimpleReader<R> {
 }
 impl<R: Read> Read for SimpleReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
         if let Some(e) = self.err.as_ref() {
             return Err(std::io::Error::new(e.kind(), e.to_string()));
         }
         let mut len = buf.len();
-        let mut state = std::mem::replace(&mut self.state, State::default());
+        let mut state = std::mem::take(&mut self.state);
         let mut off = 0;
         let mut size = 0;
 
@@ -111,8 +101,6 @@ impl<R: Read> Read for SimpleReader<R> {
             // the beginning of the buffer so that more data can be
             // copied into filterBuf on the next loop iteration.
             if state.pos + state.filtered + state.unfiltered == FILTER_BUF_SIZE {
-                
-
                 // state.filter_buf.copy_from_slice(src);
                 state.filter_buf.rotate_left(state.pos);
                 state.pos = 0;

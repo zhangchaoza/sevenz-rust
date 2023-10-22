@@ -7,9 +7,9 @@ fn main() {
     let temp_dir = temp_dir();
     let src = temp_dir.join("compress/advance");
     if src.exists() {
-        std::fs::remove_dir_all(&src);
+        let _ = std::fs::remove_dir_all(&src);
     }
-    std::fs::create_dir_all(&src);
+    let _ = std::fs::create_dir_all(&src);
     let file_count = 10000;
     let mut contents = HashMap::with_capacity(file_count);
     let mut unpack_size = 0;
@@ -20,10 +20,8 @@ fn main() {
             unpack_size += c.len();
             contents.insert(format!("file{i}.txt"), c);
         }
-        let mut i = 1;
         for (filename, content) in contents.iter() {
-            std::fs::write(src.join(filename), content);
-            i += 1;
+            let _ = std::fs::write(src.join(filename), content);
         }
     }
     let dest = temp_dir.join("compress/compress.7z");
@@ -43,7 +41,7 @@ fn main() {
     sz.finish().expect("compress ok");
     println!("compress use time:{:?}", time.elapsed());
     if src.exists() {
-        std::fs::remove_dir_all(&src);
+        let _ = std::fs::remove_dir_all(&src);
     }
     assert!(dest.exists());
     let dest_file = std::fs::File::open(&dest).unwrap();
@@ -62,7 +60,7 @@ fn main() {
         Ok(true)
     })
     .expect("decompress ok");
-    std::fs::remove_file(dest);
+    let _ = std::fs::remove_file(dest);
 }
 
 fn gen_random_contents(len: usize) -> String {

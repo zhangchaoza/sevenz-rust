@@ -76,19 +76,18 @@ pub fn add_decoder<I: Read>(
         SevenZMethod::ID_COPY => Ok(Decoder::COPY(input)),
         #[cfg(feature = "zstd")]
         SevenZMethod::ID_ZSTD => {
-            let props = coder.properties[0];
             let zs = zstd::Decoder::new(input).unwrap();
             Ok(Decoder::ZSTD(zs))
         }
         SevenZMethod::ID_LZMA => {
             let dict_size = get_lzma_dic_size(coder)?;
-            if coder.properties.len() < 1 {
+            if coder.properties.is_empty() {
                 return Err(Error::Other("LZMA properties too short".into()));
             }
             let props = coder.properties[0];
             let lz =
                 LZMAReader::new_with_props(input, uncompressed_len as _, props, dict_size, None)
-                    .map_err(|e| Error::io(e))?;
+                    .map_err(Error::io)?;
             Ok(Decoder::LZMA(lz))
         }
         SevenZMethod::ID_LZMA2 => {
@@ -127,7 +126,7 @@ pub fn add_decoder<I: Read>(
             let d = if coder.properties.is_empty() {
                 1
             } else {
-                (coder.properties[0] & 0xff) + 1
+                coder.properties[0].wrapping_add(1)
             };
             let de = DeltaReader::new(input, d as usize);
             Ok(Decoder::Delta(de))
@@ -152,7 +151,7 @@ pub fn add_decoder<I: Read>(
 
 #[inline]
 fn get_lzma2_dic_size(coder: &Coder) -> Result<u32, Error> {
-    if coder.properties.len() < 1 {
+    if coder.properties.is_empty() {
         return Err(Error::other("LZMA2 properties too short"));
     }
     let dict_size_bits = 0xff & coder.properties[0] as u32;
@@ -163,7 +162,7 @@ fn get_lzma2_dic_size(coder: &Coder) -> Result<u32, Error> {
         return Err(Error::other("Dictionary larger than 4GiB maximum size"));
     }
     if dict_size_bits == 40 {
-        return Ok(0xFFFFffff);
+        return Ok(0xFFFFFFFF);
     }
     let size = (2 | (dict_size_bits & 0x1)) << (dict_size_bits / 2 + 11);
     Ok(size)
@@ -172,5 +171,5 @@ fn get_lzma2_dic_size(coder: &Coder) -> Result<u32, Error> {
 #[inline]
 fn get_lzma_dic_size(coder: &Coder) -> Result<u32, Error> {
     let mut props = &coder.properties[1..5];
-    props.read_u32::<LittleEndian>().map_err(|e| Error::io(e))
+    props.read_u32::<LittleEndian>().map_err(Error::io)
 }

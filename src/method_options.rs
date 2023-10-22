@@ -2,7 +2,7 @@
 use lzma_rust::LZMA2Options;
 
 #[cfg(feature = "aes256")]
-use crate::{aes256sha256::AesEncoderOptions, Password};
+use crate::aes256sha256::AesEncoderOptions;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]

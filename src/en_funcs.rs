@@ -181,7 +181,7 @@ fn encode_path<W: Write + Seek>(
         if size >= MAX_BLOCK_SIZE {
             zip.push_archive_entry(
                 SevenZArchiveEntry::from_path(ele.as_path(), name),
-                Some(File::open(ele.as_path()).map_err(|e| crate::Error::io(e))?),
+                Some(File::open(ele.as_path()).map_err(crate::Error::io)?),
             )?;
             continue;
         }
