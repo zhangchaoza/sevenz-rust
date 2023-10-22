@@ -142,9 +142,9 @@ pub fn add_decoder<I: Read>(
             Ok(Decoder::AES256SHA256(de))
         }
         _ => {
-            return Err(Error::UnsupportedCompressionMethod(
+            Err(Error::UnsupportedCompressionMethod(
                 method.name().to_string(),
-            ));
+            ))
         }
     }
 }
