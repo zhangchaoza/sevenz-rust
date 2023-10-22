@@ -141,11 +141,9 @@ pub fn add_decoder<I: Read>(
             let de = Aes256Sha256Decoder::new(input, coder, password)?;
             Ok(Decoder::AES256SHA256(de))
         }
-        _ => {
-            Err(Error::UnsupportedCompressionMethod(
-                method.name().to_string(),
-            ))
-        }
+        _ => Err(Error::UnsupportedCompressionMethod(
+            method.name().to_string(),
+        )),
     }
 }
 

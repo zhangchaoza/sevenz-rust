@@ -66,11 +66,9 @@ pub fn add_encoder<W: Write>(
 
             Ok(Encoder::AES(Aes256Sha256Encoder::new(input, options)?))
         }
-        _ => {
-            Err(Error::UnsupportedCompressionMethod(
-                method.name().to_string(),
-            ))
-        }
+        _ => Err(Error::UnsupportedCompressionMethod(
+            method.name().to_string(),
+        )),
     }
 }
 
