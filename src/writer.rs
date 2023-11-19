@@ -476,7 +476,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             let mut temp: Vec<u8> = Vec::with_capacity(bitset.len() / 8 + 1);
             write_bit_set(&mut temp, &bitset)?;
             write_u64(header, temp.len() as u64)?;
-            let _ = header.write(temp.as_slice())?;
+            header.write_all(temp.as_slice())?;
         }
         Ok(())
     }
@@ -525,7 +525,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             let mut temp: Vec<u8> = Vec::with_capacity(bitset.len() / 8 + 1);
             write_bit_set(&mut temp, &bitset)?;
             write_u64(header, temp.len() as u64)?;
-            let _ = header.write(temp.as_slice())?;
+            header.write_all(temp.as_slice())?;
         }
         Ok(())
     }
