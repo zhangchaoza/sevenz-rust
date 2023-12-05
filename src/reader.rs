@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{ErrorKind, Read, Seek, SeekFrom},
+    path::Path,
 };
 
 use bit_set::BitSet;
@@ -147,6 +148,42 @@ impl<R: Read> Read for Crc32VerifyingReader<R> {
 }
 
 impl Archive {
+    /// Open 7z file under specified `path`.
+    #[inline]
+    pub fn open(path: impl AsRef<Path>) -> Result<Archive, Error> {
+        Self::open_with_password(path, &Password::empty())
+    }
+
+    /// Open an encrypted 7z file under specified `path` with  `password`.
+    #[inline]
+    pub fn open_with_password(
+        path: impl AsRef<Path>,
+        password: &Password,
+    ) -> Result<Archive, Error> {
+        let mut file = std::fs::File::open(path)?;
+        let len = file.metadata()?.len();
+        Self::read(&mut file, len, password.as_ref())
+    }
+    /// Read 7z file archive info use the specified `reader`.
+    /// -[`reader_len`] the `reader` stream length
+    /// -[`password`] Archive password encoded in utf16 little endian.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use std::io::{Read,Seek};
+    /// use std::fs::File;
+    /// use sevenz_rust::*;
+    /// let mut reader = File::open("example.7z").unwrap();
+    /// let len = reader.metadata().unwrap().len();
+    ///
+    /// let password = Password::from("the password");
+    /// let archive = Archive::read(&mut reader,len, password.as_ref()).unwrap();
+    ///
+    /// //let archive = Archive::read(&mut reader,len, &[]);// for unencrypted file
+    /// for entry in &archive.files {
+    ///     println!("{}", entry.name());
+    /// }
+    /// ```
     pub fn read<R: Read + Seek>(
         reader: &mut R,
         reader_len: u64,
@@ -1101,7 +1138,7 @@ impl<R: Read + Seek> SevenZReader<R> {
 
     fn build_decode_stack<'r>(
         source: &'r mut R,
-        archive: &'r Archive,
+        archive: &Archive,
         folder_index: usize,
         password: &[u8],
     ) -> Result<(Box<dyn Read + 'r>, usize), Error> {
@@ -1150,7 +1187,7 @@ impl<R: Read + Seek> SevenZReader<R> {
 
     fn build_decode_stack2<'r>(
         source: &'r mut R,
-        archive: &'r Archive,
+        archive: &Archive,
         folder_index: usize,
         password: &[u8],
     ) -> Result<(Box<dyn Read + 'r>, usize), Error> {
@@ -1296,6 +1333,17 @@ impl<R: Read + Seek> SevenZReader<R> {
         ))
     }
 
+    /// Takes a closure to decode each files in the archive.
+    ///
+    /// Attention about solid archive:
+    /// When decoding a solid archive, the data to be decompressed depends on the data in front of it,
+    /// you cannot simply skip the previous data and only decompress the data in the back.
+    ///
+    /// See [ChecksumVerificationFailed](https://github.com/dyz1990/sevenz-rust/issues/31).
+    ///
+    /// To speed up decompression, you can check this example [examples/forder_dec.rs](https://github.com/dyz1990/sevenz-rust/blob/main/examples/forder_dec.rs).
+    /// And this example [mt_decompress.rs](https://github.com/dyz1990/sevenz-rust/blob/main/examples/mt_decompress.rs) if you want use multi-thread.
+    ///
     pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
         &mut self,
         mut each: F,
@@ -1357,6 +1405,16 @@ impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
         self.archive.folders[self.folder_index].num_unpack_sub_streams
     }
 
+    /// Takes a closure to decode each files in this block.
+    ///
+    /// When decoding files in a block, the data to be decompressed depends on the data in front of it,
+    /// you cannot simply skip the previous data and only decompress the data in the back.
+    ///
+    /// See [ChecksumVerificationFailed](https://github.com/dyz1990/sevenz-rust/issues/31).
+    ///
+    /// To speed up decompression, you can check this example [examples/forder_dec.rs](https://github.com/dyz1990/sevenz-rust/blob/main/examples/forder_dec.rs).
+    /// And this example [mt_decompress.rs](https://github.com/dyz1990/sevenz-rust/blob/main/examples/mt_decompress.rs) if you want use multi-thread.
+    ///
     pub fn for_each_entries<F: FnMut(&SevenZArchiveEntry, &mut dyn Read) -> Result<bool, Error>>(
         self,
         each: &mut F,
