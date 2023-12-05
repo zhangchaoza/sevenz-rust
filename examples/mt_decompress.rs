@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
-use sevenz_rust::{Archive, FolderDecoder, Password};
+use sevenz_rust::{Archive, BlockDecoder, Password};
 
 fn main() {
     let time = std::time::Instant::now();
@@ -24,7 +24,7 @@ fn main() {
         let handle = std::thread::spawn(move || {
             let mut source = std::fs::File::open("examples/data/sample.7z").unwrap();
             let forder_dec =
-                FolderDecoder::new(folder_index, &archive, password.as_slice(), &mut source);
+                BlockDecoder::new(folder_index, &archive, password.as_slice(), &mut source);
             let dest = PathBuf::from("examples/data/sample_mt/");
             forder_dec
                 .for_each_entries(&mut |entry, reader| {

@@ -39,7 +39,7 @@ pub use error::Error;
 pub use lzma_rust as lzma;
 pub use nt_time;
 pub use password::Password;
-pub use reader::FolderDecoder;
+pub use reader::BlockDecoder;
 pub use reader::SevenZReader;
 #[cfg(feature = "compress")]
 pub use writer::*;

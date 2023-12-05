@@ -1350,7 +1350,7 @@ impl<R: Read + Seek> SevenZReader<R> {
     ) -> Result<(), Error> {
         let folder_count = self.archive.folders.len();
         for folder_index in 0..folder_count {
-            let forder_dec = FolderDecoder::new(
+            let forder_dec = BlockDecoder::new(
                 folder_index,
                 &self.archive,
                 &self.password,
@@ -1373,14 +1373,19 @@ impl<R: Read + Seek> SevenZReader<R> {
     }
 }
 
-pub struct FolderDecoder<'a, R: Read + Seek> {
+/// Alias for ['BlockDecoder'], used for compatibility purposes.
+#[allow(unused)]
+#[deprecated]
+pub type FolderDecoder<'a, R> = BlockDecoder<'a, R>;
+
+pub struct BlockDecoder<'a, R: Read + Seek> {
     folder_index: usize,
     archive: &'a Archive,
     password: &'a [u8],
     source: &'a mut R,
 }
 
-impl<'a, R: Read + Seek> FolderDecoder<'a, R> {
+impl<'a, R: Read + Seek> BlockDecoder<'a, R> {
     pub fn new(
         folder_index: usize,
         archive: &'a Archive,

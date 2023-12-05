@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use sevenz_rust::{Archive, FolderDecoder, Password};
+use sevenz_rust::{Archive, BlockDecoder, Password};
 
 fn main() {
     let mut file = std::fs::File::open("examples/data/sample.7z").unwrap();
@@ -11,7 +11,7 @@ fn main() {
     let my_file_name = "7zFormat.txt";
 
     for folder_index in 0..folder_count {
-        let forder_dec = FolderDecoder::new(folder_index, &archive, password.as_slice(), &mut file);
+        let forder_dec = BlockDecoder::new(folder_index, &archive, password.as_slice(), &mut file);
 
         if forder_dec
             .entries()

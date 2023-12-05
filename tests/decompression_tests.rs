@@ -5,7 +5,7 @@ use std::{
 
 use tempfile::tempdir;
 
-use sevenz_rust::{decompress_file, Archive, FolderDecoder};
+use sevenz_rust::{decompress_file, Archive, BlockDecoder};
 
 #[test]
 fn decompress_single_empty_file_unencoded_header() {
@@ -143,7 +143,7 @@ fn test_bcj2() {
     let file_len = file.metadata().unwrap().len();
     let archive = Archive::read(&mut file, file_len, &[]).unwrap();
     for i in 0..archive.folders.len() {
-        let fd = FolderDecoder::new(i, &archive, &[], &mut file);
+        let fd = BlockDecoder::new(i, &archive, &[], &mut file);
         println!("entry_count:{}", fd.entry_count());
         fd.for_each_entries(&mut |entry, reader| {
             println!("{}=>{:?}", entry.has_stream, entry.name());
