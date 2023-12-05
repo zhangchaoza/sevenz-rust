@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,28 +12,32 @@ env:
 jobs:
   build:
     runs-on: ${{matrix.os}}
-    strategy: 
+    strategy:
       matrix:
+        os:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+        toolchain:
+          - stable
+          - 1.70.0 # MSRV
         include:
           - os: macos-latest
-            name: macos_x86_64
             target: x86_64-apple-darwin
           - os: ubuntu-latest
-            name: linux_x86_64
             target: x86_64-unknown-linux-gnu
           - os: windows-latest
-            name: windows_x86_64
             target: x86_64-pc-windows-msvc
     steps:
-    - uses: actions/checkout@v4
-    - name: Install rust version
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        toolchain: stable
-        target: ${{matrix.target}}
-    - uses: actions/checkout@v4
-    - name: Run tests
-      run: cargo test --verbose --release --all-features
+      - uses: actions/checkout@v4
+      - name: Install rust version
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{matrix.toolchain}}
+          target: ${{matrix.target}}
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: cargo test --verbose --release --all-features
 
   rustfmt:
     name: Rustfmt
