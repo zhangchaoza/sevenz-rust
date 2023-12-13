@@ -119,7 +119,8 @@ fn compress_path<W: Write + Seek, P: AsRef<Path>>(
 
 impl<W: Write + Seek> SevenZWriter<W> {
     /// [Solid compression](https://en.wikipedia.org/wiki/Solid_compression)
-    /// compress all files in [path] into one block
+    /// compress all files in [path].
+    /// With multiple files in one block.
     ///
     #[inline]
     pub fn push_source_path(
@@ -127,7 +128,19 @@ impl<W: Write + Seek> SevenZWriter<W> {
         path: impl AsRef<Path>,
         filter: impl Fn(&Path) -> bool,
     ) -> Result<&mut Self, crate::Error> {
-        encode_path(&path, self, filter)?;
+        encode_path(true, &path, self, filter)?;
+        Ok(self)
+    }
+
+    /// [Non-solid compression]
+    /// compress all files in [path].
+    /// With one file per block.
+    pub fn push_source_path_non_solid(
+        &mut self,
+        path: impl AsRef<Path>,
+        filter: impl Fn(&Path) -> bool,
+    ) -> Result<&mut Self, crate::Error> {
+        encode_path(false, &path, self, filter)?;
         Ok(self)
     }
 }
@@ -155,8 +168,9 @@ fn collect_file_paths(
     Ok(())
 }
 
-const MAX_BLOCK_SIZE: u64 = 4 * 102 * 1024 * 1024; //4G
+const MAX_BLOCK_SIZE: u64 = 4 * 1024 * 1024 * 1024; //4G
 fn encode_path<W: Write + Seek>(
+    solid: bool,
     src: impl AsRef<Path>,
     zip: &mut SevenZWriter<W>,
     filter: impl Fn(&Path) -> bool,
@@ -169,6 +183,20 @@ fn encode_path<W: Write + Seek>(
             format!("Failed to collect entries from path:{:?}", src.as_ref()),
         )
     })?;
+    if !solid {
+        for ele in paths.into_iter() {
+            let name = ele
+                .strip_prefix(&src)
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
+            zip.push_archive_entry(
+                SevenZArchiveEntry::from_path(ele.as_path(), name),
+                Some(File::open(ele.as_path()).map_err(crate::Error::io)?),
+            )?;
+        }
+        return Ok(());
+    }
     let mut files = Vec::new();
     let mut file_size = 0;
     for ele in paths.into_iter() {
