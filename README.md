@@ -123,6 +123,11 @@ sz.finish().expect("compress ok");
 ```
 
 ## Changelog
+### 0.5.4 2023-1213
+- Added docs
+- Renamed `FolderDecoder` to `BlockDecoder`
+- Added method to compress paths in non-solid mode
+
 ### 0.5.3
 Fixed 'Too many open files'
 Reduce unnecessary public items #37
