@@ -139,6 +139,22 @@ impl<W: Write + Seek> SevenZWriter<W> {
     }
 
     /// Adds an archive `entry` with data from `reader`
+    /// # Examples
+    /// ```no_run
+    /// use sevenz_rust::*;
+    /// use std::fs::File;
+    /// use std::path::Path;
+    /// let mut sz = SevenZWriter::create("path/to/dest.7z").expect("create writer ok");
+    /// let src = Path::new("path/to/source.txt");
+    /// let name = "source.txt".to_string();
+    /// let entry = sz.push_archive_entry(
+    ///               SevenZArchiveEntry::from_path(&src, name),
+    ///               Some(File::open(src).unwrap()),
+    ///           )
+    ///           .expect("ok");
+    /// let compressed_size = entry.compressed_size;
+    /// sz.finish().expect("done");
+    /// ```
     pub fn push_archive_entry<R: Read>(
         &mut self,
         mut entry: SevenZArchiveEntry,
