@@ -153,3 +153,30 @@ fn test_bcj2() {
         .unwrap();
     }
 }
+
+#[test]
+fn test_entry_compressed_size() {
+    let dir = std::fs::read_dir("tests/resources").unwrap();
+    for entry in dir {
+        let path = entry.unwrap().path();
+        if path.to_string_lossy().ends_with("7z") {
+            println!("{:?}", path);
+            let mut file = File::open(path).unwrap();
+            let file_len = file.metadata().unwrap().len();
+            let archive = Archive::read(&mut file, file_len, &[]).unwrap();
+            for i in 0..archive.folders.len() {
+                let fi = archive.stream_map.folder_first_file_index[i];
+                let file = &archive.files[fi];
+                println!(
+                    "\t:{}\tsize={}, \tcompressed={}",
+                    file.name(),
+                    file.size,
+                    file.compressed_size
+                );
+                if file.has_stream && file.size > 0 {
+                    assert!(file.compressed_size > 0);
+                }
+            }
+        }
+    }
+}

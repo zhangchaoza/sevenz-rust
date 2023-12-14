@@ -679,6 +679,16 @@ impl Archive {
             if !archive.files[i].has_stream {
                 continue;
             }
+
+            //set `compressed_size` of first file in block
+            if stream_map.folder_first_file_index[next_folder_index] == i {
+                let first_pack_stream_index =
+                    stream_map.folder_first_pack_stream_index[next_folder_index];
+                let pack_size = archive.pack_sizes[first_pack_stream_index];
+
+                archive.files[i].compressed_size = pack_size;
+            }
+
             next_folder_unpack_stream_index += 1;
             if next_folder_unpack_stream_index
                 >= archive.folders[next_folder_index].num_unpack_sub_streams
