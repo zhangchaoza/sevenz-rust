@@ -127,6 +127,7 @@ sz.finish().expect("compress ok");
 - Added docs
 - Renamed `FolderDecoder` to `BlockDecoder`
 - Added method to compress paths in non-solid mode
+- Fixed entry's compressed_size is always 0 when reading archives.
 
 ### 0.5.3
 Fixed 'Too many open files'
