@@ -177,7 +177,7 @@ impl Clone for SevenZMethodConfiguration {
     fn clone(&self) -> Self {
         Self {
             method: self.method,
-            options: None,
+            options: self.options.clone(),
         }
     }
 }

@@ -2,7 +2,7 @@ use std::io::{Read, Seek, Write};
 
 #[cfg(feature = "compress")]
 pub use self::enc::*;
-use crate::{folder::Coder, Password};
+use crate::Password;
 use aes::cipher::{generic_array::GenericArray, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use lzma_rust::CountingWriter;
 use rand::Rng;
@@ -21,8 +21,8 @@ pub struct Aes256Sha256Decoder<R> {
 }
 
 impl<R: Read> Aes256Sha256Decoder<R> {
-    pub fn new(input: R, coder: &Coder, password: &[u8]) -> Result<Self, crate::Error> {
-        let cipher = Cipher::from_properties(&coder.properties, password)?;
+    pub fn new(input: R, properties: &[u8], password: &[u8]) -> Result<Self, crate::Error> {
+        let cipher = Cipher::from_properties(properties, password)?;
         Ok(Self {
             input,
             cipher,
@@ -226,6 +226,7 @@ mod enc {
         enc: Aes256CbcEnc,
         buffer: Vec<u8>,
         done: bool,
+        write_size: u32,
     }
     #[derive(Debug, Clone)]
     pub struct AesEncoderOptions {
@@ -281,7 +282,20 @@ mod enc {
                 enc: Aes256CbcEnc::new(&GenericArray::from(key), &iv.into()),
                 buffer: Default::default(),
                 done: false,
+                write_size: 0,
             })
+        }
+
+        #[inline(always)]
+        fn write_block(&mut self, block: &mut [u8]) -> std::io::Result<()>
+        where
+            W: Write,
+        {
+            let block2 = GenericArray::from_mut_slice(block);
+            self.enc.encrypt_block_mut(block2);
+            self.output.write_all(block)?;
+            self.write_size += block.len() as u32;
+            Ok(())
         }
     }
 
@@ -293,7 +307,7 @@ mod enc {
             if buf.is_empty() {
                 self.done = true;
                 self.flush()?;
-                return Ok(0);
+                return self.output.write(buf);
             }
             let len = buf.len();
             if !self.buffer.is_empty() {
@@ -305,9 +319,11 @@ mod enc {
                     let mut block = [0u8; 16];
                     block[0..buffer.len()].copy_from_slice(buffer);
                     block[buffer.len()..16].copy_from_slice(&buf[..end]);
-                    let block2 = GenericArray::from_mut_slice(&mut block);
-                    self.enc.encrypt_block_mut(block2);
-                    self.output.write_all(&block)?;
+                    // let block2 = GenericArray::from_mut_slice(&mut block);
+                    // self.enc.encrypt_block_mut(block2);
+                    // self.output.write_all(&block)?;
+                    // self.write_size += block.len() as _;
+                    self.write_block(&mut block)?;
                     self.buffer.clear();
                     buf = &buf[end..];
                 } else {
@@ -324,9 +340,7 @@ mod enc {
                 }
                 let mut block = [0u8; 16];
                 block.copy_from_slice(data);
-                let block2 = GenericArray::from_mut_slice(&mut block);
-                self.enc.encrypt_block_mut(block2);
-                self.output.write_all(&block)?;
+                self.write_block(&mut block)?;
             }
 
             Ok(len)
@@ -335,13 +349,39 @@ mod enc {
         fn flush(&mut self) -> std::io::Result<()> {
             if !self.buffer.is_empty() && self.done {
                 assert!(self.buffer.len() < 16);
-                self.buffer.resize(16, 0);
-                let block = GenericArray::from_mut_slice(&mut self.buffer);
-                self.enc.encrypt_block_mut(block);
-                self.output.write_all(block.as_slice())?;
+                let mut block = [0u8; 16];
+                block[..self.buffer.len()].copy_from_slice(&self.buffer);
+                self.write_block(&mut block)?;
                 self.buffer.clear();
             }
-            self.output.flush()
+            Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "compress")]
+    #[test]
+    fn test_aes_codec() {
+        let mut encoded = vec![];
+        let mut writer = CountingWriter::new(&mut encoded);
+        let pwd: Password = "1234".into();
+        let options = AesEncoderOptions::new(pwd.clone());
+        let mut enc = Aes256Sha256Encoder::new(writer, &options).unwrap();
+        let original = include_bytes!("./aes256sha256.rs");
+        enc.write_all(original).expect("encode data");
+        enc.write(&[]);
+
+        let mut encoded_data = &encoded[..];
+        let mut dec =
+            Aes256Sha256Decoder::new(&mut encoded_data, &options.properties(), pwd.as_slice())
+                .unwrap();
+
+        let mut decoded = vec![];
+        std::io::copy(&mut dec, &mut decoded);
+        assert_eq!(&decoded[..original.len()], &original[..]);
     }
 }

@@ -70,6 +70,7 @@ pub struct SevenZWriter<W: Write> {
     content_methods: Arc<Vec<SevenZMethodConfiguration>>,
     pack_info: PackInfo,
     unpack_info: UnpackInfo,
+    encrypt_header: bool,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -96,6 +97,7 @@ impl<W: Write + Seek> SevenZWriter<W> {
             content_methods: Arc::new(vec![SevenZMethodConfiguration::new(SevenZMethod::LZMA2)]),
             pack_info: Default::default(),
             unpack_info: Default::default(),
+            encrypt_header: true,
         })
     }
 
@@ -112,6 +114,12 @@ impl<W: Write + Seek> SevenZWriter<W> {
         }
         self.content_methods = Arc::new(content_methods);
         self
+    }
+
+    /// Whether to enable encrypt-header
+    /// Default's true
+    pub fn set_encrypt_header(&mut self, enabled: bool) {
+        self.encrypt_header = enabled;
     }
 
     /// Create an archive entry using the file in `path` and entry_name provided.
@@ -404,8 +412,17 @@ impl<W: Write + Seek> SevenZWriter<W> {
         let mut more_sizes = vec![];
         let size = raw_header.len() as u64;
         let crc = CRC32.checksum(&raw_header);
-        let methods = vec![SevenZMethodConfiguration::new(SevenZMethod::LZMA)
-            .with_options(LZMA2Options::with_preset(6).into())];
+        let mut methods = vec![];
+
+        if self.encrypt_header {
+            for conf in self.content_methods.iter() {
+                if conf.method.id() == SevenZMethod::AES256SHA256.id() {
+                    methods.push(conf.clone());
+                    break;
+                }
+            }
+        }
+        methods.push(SevenZMethodConfiguration::new(SevenZMethod::LZMA));
 
         let methods = Arc::new(methods);
 
@@ -413,13 +430,13 @@ impl<W: Write + Seek> SevenZWriter<W> {
 
         let mut compress_size = 0;
         let mut compressed = CompressWrapWriter::new(&mut encoded_data, &mut compress_size);
-
         {
             let mut encoder = Self::create_writer(&methods, &mut compressed, &mut more_sizes)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             encoder.write_all(&raw_header)?;
             let _ = encoder.write(&[])?;
         }
+
         let compress_crc = compressed.crc_value();
         let compress_size = *compressed.bytes_written;
         if compress_size as u64 + 20 >= size {
@@ -432,8 +449,9 @@ impl<W: Write + Seek> SevenZWriter<W> {
         pack_info.add_stream(compress_size as u64, compress_crc);
 
         let mut unpack_info = UnpackInfo::default();
-        let mut sizes = vec![size];
+        let mut sizes = Vec::with_capacity(1 + more_sizes.len());
         sizes.extend(more_sizes.iter().map(|s| s.get() as u64));
+        sizes.push(size);
         unpack_info.add(methods, sizes, crc);
 
         header.write_u8(K_ENCODED_HEADER)?;

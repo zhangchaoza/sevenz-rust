@@ -6,7 +6,7 @@ use super::{range_enc::RangeEncoder, CountingWriter, LZMA2Options};
 
 use super::encoder::{LZMAEncoder, LZMAEncoderModes};
 /// Compresses into the legacy .lzma file format or into a raw LZMA stream
-/// 
+///
 /// # Examples
 /// ```
 /// use std::io::Write;
@@ -19,9 +19,9 @@ use super::encoder::{LZMAEncoder, LZMAEncoderModes};
 /// let mut w = LZMAWriter::new_no_header(CountingWriter::new(&mut out), &options, false).unwrap();
 /// w.write_all(&s).unwrap();
 /// w.write(&[]).unwrap();
-/// 
+///
 /// ```
-/// 
+///
 pub struct LZMAWriter<W: Write> {
     rc: RangeEncoder<CountingWriter<W>>,
     lzma: LZMAEncoder,
@@ -173,9 +173,6 @@ impl<W: Write> Write for LZMAWriter<W> {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Unsupported,
-            "LZMAWriter does not support flush",
-        ))
+        Ok(())
     }
 }

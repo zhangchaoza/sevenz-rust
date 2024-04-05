@@ -10,7 +10,7 @@ fn main() {
         let _ = std::fs::remove_dir_all(&src);
     }
     let _ = std::fs::create_dir_all(&src);
-    let file_count = 10000;
+    let file_count = 100;
     let mut contents = HashMap::with_capacity(file_count);
     let mut unpack_size = 0;
     // generate random content files
@@ -29,17 +29,19 @@ fn main() {
     let time = Instant::now();
     // start compress
     let mut sz = SevenZWriter::create(&dest).expect("create writer ok");
+    sz.set_encrypt_header(true);
     #[cfg(feature = "aes256")]
     {
         sz.set_content_methods(vec![
             sevenz_rust::AesEncoderOptions::new("sevenz-rust".into()).into(),
             LZMA2Options::with_preset(9).into(),
         ]);
+        // sz.set_encrypt_header(true);
     }
     sz.push_source_path(&src, |_| true).expect("pack ok");
-
+    println!("finish");
     sz.finish().expect("compress ok");
-    println!("compress use time:{:?}", time.elapsed());
+    println!("compress took {:?}/{:?}", time.elapsed(), dest);
     if src.exists() {
         let _ = std::fs::remove_dir_all(&src);
     }
@@ -51,6 +53,8 @@ fn main() {
     println!("ratio:{:?}", m.len() as f64 / unpack_size as f64);
 
     // decompress
+    // let archive = Archive::open_with_password(&dest, &"sevenz-rust-".into()).unwrap();
+    // println!("archive:{:?}", archive);
     let mut sz = SevenZReader::open(&dest, "sevenz-rust".into()).expect("create reader ok");
     assert_eq!(contents.len(), sz.archive().files.len());
     assert_eq!(1, sz.archive().folders.len());
