@@ -19,6 +19,7 @@ pub enum Error {
     MaxMemLimited { max_kb: usize, actaul_kb: usize },
     PasswordRequired,
     Unsupported(Cow<'static, str>),
+    MaybeBadPassword(std::io::Error),
 }
 
 impl From<std::io::Error> for Error {
@@ -46,9 +47,27 @@ impl Error {
         Self::Io(e, msg.into())
     }
 
+    pub fn bad_password(e: std::io::Error, encryped: bool) -> Self {
+        if encryped {
+            Self::MaybeBadPassword(e)
+        } else {
+            Self::io(e)
+        }
+    }
+
     #[inline]
     pub(crate) fn file_open(e: std::io::Error, filename: impl Into<Cow<'static, str>>) -> Self {
         Self::Io(e, filename.into())
+    }
+
+    pub(crate) fn maybe_bad_password(self, encryped: bool) -> Self {
+        if !encryped {
+            return self;
+        }
+        match self {
+            Self::Io(e, s) if s.is_empty() => Self::MaybeBadPassword(e),
+            _ => self,
+        }
     }
 }
 

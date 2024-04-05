@@ -87,7 +87,7 @@ pub fn add_decoder<I: Read>(
             let props = coder.properties[0];
             let lz =
                 LZMAReader::new_with_props(input, uncompressed_len as _, props, dict_size, None)
-                    .map_err(Error::io)?;
+                    .map_err(|e| Error::bad_password(e, !password.is_empty()))?;
             Ok(Decoder::LZMA(lz))
         }
         SevenZMethod::ID_LZMA2 => {
@@ -138,7 +138,10 @@ pub fn add_decoder<I: Read>(
         }
         #[cfg(feature = "aes256")]
         SevenZMethod::ID_AES256SHA256 => {
-            let de = Aes256Sha256Decoder::new(input, coder, password)?;
+            if password.is_empty() {
+                return Err(Error::PasswordRequired);
+            }
+            let de = Aes256Sha256Decoder::new(input, &coder.properties, password)?;
             Ok(Decoder::AES256SHA256(de))
         }
         _ => Err(Error::UnsupportedCompressionMethod(

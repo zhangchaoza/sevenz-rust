@@ -82,7 +82,6 @@ impl<R: Read + Seek> Read for SeekableBoundedReader<R> {
             return Ok(0);
         }
         if self.stream_position()? != self.cur {
-            println!("seeking to {}", self.cur);
             self.inner.seek(SeekFrom::Start(self.cur))?;
         }
         let buf2 = if buf.len() < (self.bounds.1 - self.cur) as usize {
@@ -359,7 +358,9 @@ impl Archive {
                 Self::read_encoded_header(&mut buf_reader, reader, &mut archive, password)?;
             buf.clear();
             buf.resize(buf_size, 0);
-            out_reader.read_exact(&mut buf).map_err(Error::io)?;
+            out_reader
+                .read_exact(&mut buf)
+                .map_err(|e| Error::bad_password(e, !password.is_empty()))?;
             archive = Archive::default();
             buf_reader = buf.as_slice();
             nid = read_u8(&mut buf_reader)?;
@@ -1457,7 +1458,9 @@ impl<'a, R: Read + Seek> BlockDecoder<'a, R> {
                         file.crc,
                     ));
                 }
-                if !each(file, &mut decoder)? {
+                if !each(file, &mut decoder)
+                    .map_err(|e| e.maybe_bad_password(!self.password.is_empty()))?
+                {
                     return Ok(false);
                 }
             } else {
