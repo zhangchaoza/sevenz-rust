@@ -114,6 +114,10 @@ pub fn default_entry_extract_fn(
 ) -> Result<bool, Error> {
     use std::{fs::File, io::BufWriter};
 
+    if entry.is_anti_item() {
+        return Ok(true);
+    }
+
     if entry.is_directory() {
         let dir = dest;
         if !dir.exists() {
